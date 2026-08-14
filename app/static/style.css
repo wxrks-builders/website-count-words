@@ -173,7 +173,9 @@ button, .button {
 button:hover, .button:hover { background: var(--brand-hover); }
 button:disabled { background: var(--faint); cursor: not-allowed; }
 
-button.secondary {
+/* Both selectors: `.button` is also used on anchors (the landing CTAs, the
+   sign-in link), and an element-only rule left those rendering as primaries. */
+button.secondary, .button.secondary {
   background: var(--card);
   border: 1px solid #DAD6C9;
   color: var(--text);
@@ -181,7 +183,9 @@ button.secondary {
   padding: 0 18px;
   font-size: 13px;
 }
-button.secondary:hover { background: var(--card); border-color: #B9B4A4; }
+button.secondary:hover, .button.secondary:hover {
+  background: var(--card); border-color: #B9B4A4; color: var(--text); text-decoration: none;
+}
 
 button.danger-outline {
   background: var(--card);
@@ -224,6 +228,68 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
   box-shadow: 0 1px 2px rgba(25, 23, 18, 0.06);
 }
 .google-btn:hover { border-color: #B9B4A4; box-shadow: 0 2px 6px rgba(25, 23, 18, 0.10); text-decoration: none; }
+
+/* ---------- Landing (public front door) ---------- */
+.landing { padding-top: 40px; }
+.landing-hero { max-width: 40rem; }
+.landing-hero h1 {
+  font-size: clamp(2.1rem, 1.3rem + 3.4vw, 3.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin: 0;
+  text-wrap: balance;
+}
+.landing-lede {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 20px 0 0;
+  max-width: 34rem;
+}
+.landing-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+.landing-fineprint { font-size: 13px; color: var(--faint); margin: 14px 0 0; }
+
+.landing-points {
+  display: grid;
+  gap: 28px 40px;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  margin-top: 72px;
+  padding-top: 40px;
+  border-top: 1px solid var(--border);
+}
+.landing-point h2 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+.landing-point p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+
+.landing-also {
+  margin-top: 56px;
+  padding: 24px 28px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-width: 40rem;
+}
+.landing-also p { margin: 8px 0 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+
+.landing-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 72px;
+  padding: 24px 0 48px;
+  font-size: 13px;
+  color: var(--faint);
+}
+.landing-footer .page-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  justify-content: space-between;
+  padding-top: 0;
+  padding-bottom: 0;
+}
 
 /* ---------- Login screen ---------- */
 .login-screen {

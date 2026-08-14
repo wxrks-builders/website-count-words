@@ -47,6 +47,8 @@ class RunRecord(BaseModel):
     markdown_pages: int = 0
     markdown_bytes: int = 0
     markdown_state: str = "off"
+    # Which front door this run came in through — see app/surfaces.py.
+    surface: str = "counter"
     pages: list[PageResult]
 
 

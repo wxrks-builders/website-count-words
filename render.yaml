@@ -24,6 +24,19 @@ services:
         value: https://wordcounter.wxrks.app
       - key: ADMIN_EMAILS
         sync: false
+      # Both products are served by this one service, chosen by Host header
+      # (app/surfaces.py). Add the second domain to THIS service — a separate
+      # instance can't share the job state or the Markdown volume.
+      - key: COUNTER_HOST
+        value: wordcounter.wxrks.app
+      - key: MARKDOWN_HOST
+        value: markdown.wxrks.app
+      # A finished, public run to show on each landing page. Unset just hides
+      # the button.
+      - key: COUNTER_DEMO_RUN_ID
+        sync: false
+      - key: MARKDOWN_DEMO_RUN_ID
+        sync: false
       # Saved page Markdown, under DB_PATH's directory unless overridden.
       # Capture stops on its own before the volume gets tight — the database
       # lives on the same disk, so filling it would take the whole app down.

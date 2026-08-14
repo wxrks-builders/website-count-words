@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}{{ source_url }} — Website Word Counter{% endblock %}
+{% block title %}{{ source_url }} — {{ surface.name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block body %}
   <div class="report-wrap report-header">
     <a href="/">← New crawl</a>
@@ -91,7 +92,7 @@
         {# Hidden alongside the one on the home form — see index.html. #}
         <input type="text" id="recrawl-language" class="language-input" hidden placeholder="Language (auto)" title="Only crawl this language's pages, for sites with a /en/, /fr/, ... path per language. Leave blank to auto-detect the starting page's language.">
         <label class="checkbox-label" title="Save each page's main content as Markdown, downloadable as a ZIP when the crawl finishes.">
-          <input type="checkbox" id="recrawl-markdown"> Save Markdown
+          <input type="checkbox" id="recrawl-markdown"{% if surface.default_capture_markdown %} checked{% endif %}> Save Markdown
         </label>
         <button type="submit" id="recrawl-btn" class="secondary">Re-crawl</button>
       </form>

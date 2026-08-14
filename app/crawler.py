@@ -22,7 +22,7 @@ from crawl4ai.deep_crawling import BFSDeepCrawlStrategy
 from crawl4ai.deep_crawling.filters import DomainFilter, FilterChain, URLFilter
 from crawl4ai.utils import get_base_domain
 
-from app import db, markdown_store
+from app import db, markdown_store, surfaces
 from app.job_store import dequeue_next, get_job, list_active_jobs
 from app.models import PageResult
 from app.notifications import send_crawl_notification
@@ -349,6 +349,7 @@ async def _checkpoint(job, languages: list[str]) -> None:
         markdown_pages=job.markdown_pages,
         markdown_bytes=job.markdown_bytes,
         markdown_state=job.markdown_state,
+        surface=job.surface,
     )
 
 
@@ -969,6 +970,7 @@ async def run_crawl(
             markdown_pages=job.markdown_pages,
             markdown_bytes=job.markdown_bytes,
             markdown_state=job.markdown_state,
+            surface=job.surface,
         )
 
         if job.status == "completed":
@@ -987,6 +989,7 @@ async def run_crawl(
                     error=job.error or job.stopped_reason,
                     detected_cms=(job.estimate_result or {}).get("detected_cms"),
                     confidence=(job.estimate_result or {}).get("confidence"),
+                    surface=surfaces.for_key(job.surface),
                 )
 
         # This job just freed a slot (or, if paused, was already outside

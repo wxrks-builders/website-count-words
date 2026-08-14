@@ -5,6 +5,7 @@ import os
 
 import httpx
 
+from app import surfaces
 from app.templates import templates
 
 logger = logging.getLogger(__name__)
@@ -41,10 +42,15 @@ def base_url() -> str:
     return PUBLIC_BASE_URL or _observed_origin
 
 
-def absolute_url(path: str) -> str | None:
+def absolute_url(path: str, surface=None) -> str | None:
     """An absolute link, or None if we genuinely can't build one — callers omit
-    the button rather than render a relative href that goes nowhere."""
-    base = base_url()
+    the button rather than render a relative href that goes nowhere.
+
+    Pass a surface to link back to the front door the reader actually used. Both
+    products are one app on two hostnames, so without this someone who signed up
+    on the Markdown domain would get email pointing at the word counter.
+    """
+    base = surface.origin if surface is not None else base_url()
     if not base:
         logger.error("Cannot build an absolute URL for %s: no PUBLIC_BASE_URL and no request seen yet", path)
         return None
@@ -62,12 +68,15 @@ def _fmt(n: int) -> str:
     return f"{n:,}"
 
 
-async def _send_email(to_email: str, subject: str, **context) -> None:
+async def _send_email(to_email: str, subject: str, surface=None, **context) -> None:
     if not MAILGUN_API_KEY or not MAILGUN_DOMAIN:
         return
 
+    surface = surface or surfaces.DEFAULT
     html = templates.env.get_template("email_notification.html").render(
-        logo_url=absolute_url("/static/brand/logo-email.png"), **context
+        logo_url=absolute_url("/static/brand/logo-email.png", surface),
+        product_name=surface.name,
+        **context,
     )
 
     # Plain-text alternative — some clients show it, and spam filters like
@@ -111,7 +120,9 @@ async def send_crawl_notification(
     error: str | None = None,
     detected_cms: str | None = None,
     confidence: str | None = None,
+    surface=None,
 ) -> None:
+    surface = surface or surfaces.DEFAULT
     heading = _STATUS_SUBJECTS.get(status, "Crawl update")
     completed = status == "completed"
 
@@ -150,9 +161,10 @@ async def send_crawl_notification(
         stats=stats,
         notice=notice,
         notice_tone="danger" if status == "failed" else "warn",
-        cta_url=absolute_url(f"/crawl/{run_id}"),
+        cta_url=absolute_url(f"/crawl/{run_id}", surface),
         cta_label="View full report",
-        footer_note="You're getting this because you started this crawl on Word Counter.",
+        footer_note=f"You're getting this because you started this crawl on {surface.name}.",
+        surface=surface,
     )
 
 
@@ -163,7 +175,9 @@ async def send_share_notification(
     share_url: str,
     total_words: int | None = None,
     page_count: int | None = None,
+    surface=None,
 ) -> None:
+    surface = surface or surfaces.DEFAULT
     hero_stats = []
     if total_words is not None and page_count is not None:
         hero_stats = [(_fmt(total_words), "Total words"), (_fmt(page_count), "Pages counted")]
@@ -179,5 +193,6 @@ async def send_share_notification(
         stats=[],
         cta_url=share_url,
         cta_label="View report",
-        footer_note="You're getting this because someone shared a Word Counter report with you.",
+        footer_note=f"You're getting this because someone shared a {surface.name} report with you.",
+        surface=surface,
     )

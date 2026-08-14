@@ -130,6 +130,10 @@ async def _ensure_columns() -> None:
         ("markdown_pages", "ALTER TABLE runs ADD COLUMN markdown_pages INTEGER NOT NULL DEFAULT 0"),
         ("markdown_bytes", "ALTER TABLE runs ADD COLUMN markdown_bytes INTEGER NOT NULL DEFAULT 0"),
         ("markdown_state", "ALTER TABLE runs ADD COLUMN markdown_state TEXT NOT NULL DEFAULT 'off'"),
+        # Which front door this run was started from, so the finished-crawl
+        # email links back to the same brand. That email is sent from a
+        # background task, which has no request to read a Host header from.
+        ("surface", "ALTER TABLE runs ADD COLUMN surface TEXT NOT NULL DEFAULT 'counter'"),
     ]:
         if column not in existing:
             await conn.execute(ddl)
@@ -213,6 +217,7 @@ def _row_to_run(row: aiosqlite.Row) -> RunRecord:
         markdown_pages=row["markdown_pages"],
         markdown_bytes=row["markdown_bytes"],
         markdown_state=row["markdown_state"],
+        surface=row["surface"],
         pages=pages,
     )
 
@@ -290,6 +295,7 @@ async def save_run(
     markdown_pages: int = 0,
     markdown_bytes: int = 0,
     markdown_state: str = "off",
+    surface: str = "counter",
 ) -> None:
     conn = _conn()
     now = datetime.now(timezone.utc).isoformat()
@@ -300,8 +306,8 @@ async def save_run(
         INSERT INTO runs
             (id, source_url, user_id, created_at, status, total_words, page_count, limit_reached,
              login_blocked_count, domain_scope, language, language_auto_detected, resume_state_json, pages_json,
-             capture_markdown, markdown_pages, markdown_bytes, markdown_state)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             capture_markdown, markdown_pages, markdown_bytes, markdown_state, surface)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             status=excluded.status,
             total_words=excluded.total_words,
@@ -316,14 +322,15 @@ async def save_run(
             capture_markdown=excluded.capture_markdown,
             markdown_pages=excluded.markdown_pages,
             markdown_bytes=excluded.markdown_bytes,
-            markdown_state=excluded.markdown_state
+            markdown_state=excluded.markdown_state,
+            surface=excluded.surface
         """,
         (
             # created_at is only ever set on first insert (see ON CONFLICT above) —
             # periodic checkpointing during a crawl must not keep bumping it forward.
             run_id, source_url, user_id, now, status, total_words, len(pages), int(limit_reached),
             login_blocked_count, domain_scope, language, int(language_auto_detected), resume_state_json, pages_json,
-            int(capture_markdown), markdown_pages, markdown_bytes, markdown_state,
+            int(capture_markdown), markdown_pages, markdown_bytes, markdown_state, surface,
         ),
     )
     await conn.commit()

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Sign in — Website Word Counter{% endblock %}
+{% block title %}Sign in — {{ surface.name }}{% endblock %}
 {% block body %}
   <div class="login-screen">
     <div class="login-card">
       <img class="logo-img lg" src="/static/brand/logo.svg" alt="wxrks" width="197" height="45">
-      <div class="logo-name lg">Word Counter</div>
-      <p class="subtitle">Point it at a website. Get a word-count audit, page by page.</p>
+      <div class="logo-name lg">{{ surface.name }}</div>
+      <p class="subtitle">{{ surface.tagline }}. Sign in to point it at your own site.</p>
       {% if error %}
         <p class="field-error">{{ error }}</p>
       {% endif %}

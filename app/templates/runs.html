@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}All crawls — Website Word Counter{% endblock %}
+{% block title %}All crawls — {{ surface.name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block body %}
   {% include "_topbar.html" %}
 

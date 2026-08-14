@@ -33,7 +33,7 @@
                   </td>
                   <td style="padding-right:12px;"><div style="width:1px; height:18px; background:#3F7A63;"></div></td>
                   {% endif %}
-                  <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; color:#FFFFFF; font-size:16px; font-weight:700; letter-spacing:-0.2px;">Word&nbsp;Counter</td>
+                  <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; color:#FFFFFF; font-size:16px; font-weight:700; letter-spacing:-0.2px;">{{ (product_name or "Word Counter").replace(" ", "&nbsp;") | safe }}</td>
                 </tr>
               </table>
             </td>
@@ -121,7 +121,7 @@
           <!-- Footer -->
           <tr>
             <td style="padding:16px 32px; background:#FBFAF7; border-top:1px solid #E4E1D6; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-              <p style="margin:0; font-size:11px; line-height:1.5; color:#A5A093;">{{ footer_note or "Website Word Counter" }}</p>
+              <p style="margin:0; font-size:11px; line-height:1.5; color:#A5A093;">{{ footer_note or product_name or "Website Word Counter" }}</p>
             </td>
           </tr>
 

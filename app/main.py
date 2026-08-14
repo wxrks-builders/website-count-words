@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app import auth, db, markdown_store, report
+from app import auth, db, markdown_store, report, surfaces
 from app.auth import get_current_user, require_admin, require_user, require_user_api
 from app.crawler import MAX_CONCURRENT_CRAWLS, PAUSE_AT_WORDS, estimate_result_from_snapshot, run_crawl
 from app.job_store import create_job, enqueue, get_job, list_active_jobs, list_queued_jobs, restore_job
@@ -95,7 +95,13 @@ app.include_router(auth.router)
 async def _record_origin(request: Request, call_next):
     """Emails are sent from background tasks that have no request to build a
     link from. Recording the origin real traffic arrives on means a missing
-    PUBLIC_BASE_URL degrades to a working link instead of a broken one."""
+    PUBLIC_BASE_URL degrades to a working link instead of a broken one.
+
+    Also resolves which product this request belongs to — both hostnames are
+    served by this one app (see app/surfaces.py). Templates read it through the
+    context processor in app/templates.py.
+    """
+    request.state.surface = surfaces.for_host(request.headers.get("host"))
     remember_origin(str(request.base_url))
     return await call_next(request)
 
@@ -118,7 +124,26 @@ def _page_count(total: int, per_page: int) -> int:
 
 
 @app.get("/")
-async def index(request: Request, user: User = Depends(require_user)):
+async def index(request: Request, user: User | None = Depends(get_current_user)):
+    """Signed in, this is the app. Signed out, it's the front door.
+
+    It used to redirect anonymous visitors straight to /login, which meant
+    anyone arriving from a link saw a Google button and one sentence about a
+    product they'd never heard of.
+    """
+    if user is None:
+        surface = request.state.surface
+        return templates.TemplateResponse(
+            request,
+            "landing.html",
+            {
+                # Only offered when the run is actually reachable — a stale id
+                # should lose the button, not send visitors to a 404.
+                "demo_run_id": await _public_demo_run_id(surface),
+                "other_surfaces": [s for s in surfaces.SURFACES if s.key != surface.key],
+            },
+        )
+
     recent_runs = await db.list_user_runs(user.id, limit=HOME_RUNS)
     return templates.TemplateResponse(
         request,
@@ -129,6 +154,14 @@ async def index(request: Request, user: User = Depends(require_user)):
             "total_runs": await db.count_user_runs(user.id),
         },
     )
+
+
+async def _public_demo_run_id(surface) -> str:
+    run_id = surface.demo_run_id
+    if not run_id:
+        return ""
+    run = await db.get_run(run_id)
+    return run_id if run is not None and run.is_public else ""
 
 
 @app.get("/runs")
@@ -150,7 +183,7 @@ async def all_runs(request: Request, page: int = 1, user: User = Depends(require
 
 
 @app.post("/crawl")
-async def start_crawl(payload: CrawlRequest, user: User = Depends(require_user_api)):
+async def start_crawl(payload: CrawlRequest, request: Request, user: User = Depends(require_user_api)):
     url = payload.url.strip()
     if not _valid_url(url):
         raise HTTPException(status_code=400, detail="Please enter a valid http(s) URL")
@@ -183,6 +216,9 @@ async def start_crawl(payload: CrawlRequest, user: User = Depends(require_user_a
     # is started later by _maybe_start_next_queued, which has no payload — the
     # other resume paths read it off the job for the same reason.
     job.capture_markdown = payload.capture_markdown
+    # Recorded from the request, not the payload, so the front door someone
+    # actually used is what their finished-crawl email links back to.
+    job.surface = request.state.surface.key
 
     if at_capacity:
         job.status = "queued"
@@ -406,13 +442,16 @@ async def export_markdown(run_id: str, user: User | None = Depends(get_current_u
     )
 
 
-def _share_url(run_id: str) -> str | None:
-    return absolute_url(f"/share/{run_id}")
+def _share_url(run_id: str, surface=None) -> str | None:
+    """Built from the surface the sharer is looking at, so a link copied on the
+    Markdown domain doesn't hand the recipient the other brand."""
+    return absolute_url(f"/share/{run_id}", surface)
 
 
 @app.post("/crawl/{run_id}/share")
 async def toggle_share(
-    run_id: str, payload: ShareToggleRequest | None = None, user: User = Depends(require_user_api)
+    run_id: str, request: Request, payload: ShareToggleRequest | None = None,
+    user: User = Depends(require_user_api),
 ):
     run = await db.get_run(run_id)
     if run is None or run.user_id != user.id:
@@ -420,11 +459,13 @@ async def toggle_share(
 
     new_state = payload.is_public if payload is not None and payload.is_public is not None else not run.is_public
     await db.set_run_public(run_id, new_state)
-    return JSONResponse({"is_public": new_state, "share_url": _share_url(run_id)})
+    return JSONResponse({"is_public": new_state, "share_url": _share_url(run_id, request.state.surface)})
 
 
 @app.post("/crawl/{run_id}/share/email")
-async def email_share(run_id: str, payload: ShareEmailRequest, user: User = Depends(require_user_api)):
+async def email_share(
+    run_id: str, payload: ShareEmailRequest, request: Request, user: User = Depends(require_user_api)
+):
     run = await db.get_run(run_id)
     if run is None or run.user_id != user.id:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -445,9 +486,10 @@ async def email_share(run_id: str, payload: ShareEmailRequest, user: User = Depe
         # you", but not everyone's Google profile has one worth showing.
         shared_by=user.name or user.email,
         source_url=run.source_url,
-        share_url=_share_url(run_id),
+        share_url=_share_url(run_id, request.state.surface),
         total_words=run.total_words,
         page_count=run.page_count,
+        surface=request.state.surface,
     )
     return JSONResponse(
         {"sent": True, "is_public": True, "recipients": await db.list_run_shares(run_id)}

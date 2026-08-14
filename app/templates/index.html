@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Website Word Counter{% endblock %}
+{% block title %}{{ surface.name }} — {{ surface.tagline }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block body %}
   {% include "_topbar.html" %}
 
@@ -19,7 +20,7 @@
          the crawler restricts to the starting page's own declared language. #}
       <input type="text" id="language" class="language-input" hidden placeholder="Primary language (auto)" title="Only crawl this language's pages, for sites with a /en/, /fr/, ... path per language. Leave blank to auto-detect the starting page's language. Comma-separate multiple codes to keep more than one (e.g. en, pt, es).">
       <label class="checkbox-label" title="Save each page's main content as Markdown, downloadable as a ZIP when the crawl finishes.">
-        <input type="checkbox" id="capture-markdown"> Save Markdown
+        <input type="checkbox" id="capture-markdown"{% if surface.default_capture_markdown %} checked{% endif %}> Save Markdown
       </label>
       <button type="submit" id="submit-btn">Crawl</button>
     </form>

@@ -3,7 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Website Word Counter{% endblock %}</title>
+
+  {# `surface` is injected into every render by the context processor in
+     app/templates.py, so pages don't have to pass it. #}
+  <title>{% block title %}{{ surface.name }} — {{ surface.tagline }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ surface.description }}{% endblock %}">
+
+  {# Canonical per surface. Both hostnames are served by the same app, so
+     without this they'd compete with each other for the same searches. #}
+  <link rel="canonical" href="{% block canonical %}{{ surface.url(request.url.path) }}{% endblock %}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ surface.name }}">
+  <meta property="og:title" content="{% block og_title %}{{ surface.name }} — {{ surface.tagline }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{{ surface.description }}{% endblock %}">
+  <meta property="og:url" content="{{ surface.url(request.url.path) }}">
+  <meta property="og:image" content="{{ surface.url(surface.og_image) }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ self.og_title() }}">
+  <meta name="twitter:description" content="{{ self.og_description() }}">
+  <meta name="twitter:image" content="{{ surface.url(surface.og_image) }}">
+
   <link rel="icon" href="/static/brand/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/static/brand/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
@@ -12,6 +34,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/print.css" media="print">
+  {% block head %}{% endblock %}
 </head>
 <body>
   {% block body %}{% endblock %}

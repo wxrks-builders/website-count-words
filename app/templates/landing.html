@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block body %}
+  {# The public front door. Everything here comes from `surface`, so both
+     hostnames share this template and differ only in what they say. #}
+  <header class="topbar">
+    <a class="logo" href="/">
+      <img class="logo-img" src="/static/brand/logo.svg" alt="wxrks" width="123" height="28">
+      <span class="logo-sep"></span>
+      <span class="logo-name">{{ surface.name }}</span>
+    </a>
+    <a class="button secondary" href="/login">Sign in</a>
+  </header>
+
+  <div class="page-wrap landing">
+    <section class="landing-hero">
+      <h1>{{ surface.headline }}</h1>
+      <p class="landing-lede">{{ surface.lede }}</p>
+      <div class="landing-cta">
+        <a class="button" href="/login">Start with your site</a>
+        {% if demo_run_id %}
+        <a class="button secondary" href="/share/{{ demo_run_id }}">{{ surface.demo_label }} →</a>
+        {% endif %}
+      </div>
+      <p class="landing-fineprint">
+        Sign in with Google. Nothing to install, nothing to configure.
+      </p>
+    </section>
+
+    <section class="landing-points">
+      {% for title, body in surface.points %}
+      <div class="landing-point">
+        <h2>{{ title }}</h2>
+        <p>{{ body }}</p>
+      </div>
+      {% endfor %}
+    </section>
+
+    <section class="landing-also">
+      <div class="section-label">Also in here</div>
+      {% if surface.key == "markdown" %}
+      <p>
+        Every crawl counts the words as it goes, so you get the size of the site
+        alongside the content — total, per folder and per page. Useful the day
+        somebody asks what it would cost to translate.
+      </p>
+      {% else %}
+      <p>
+        Tick one box before a crawl and every page is also saved as Markdown —
+        main content only, no navigation — and handed back as a single ZIP.
+        Ready to feed a language model, a search index or a CMS migration.
+      </p>
+      {% endif %}
+    </section>
+  </div>
+
+  <footer class="landing-footer">
+    <div class="page-wrap">
+      <span>{{ surface.name }} — a tool by wxrks</span>
+      {% for other in other_surfaces %}
+      <a href="{{ other.url() }}">{{ other.name }} ↗</a>
+      {% endfor %}
+    </div>
+  </footer>
+{% endblock %}

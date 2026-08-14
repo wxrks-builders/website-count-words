@@ -54,6 +54,8 @@ class Job:
     markdown_bytes: int = 0
     # off | capturing | stopped_disk | stopped_run_cap | stopped_global_cap | error
     markdown_state: str = "off"
+    # The product this run was started from; follows it into the finished email.
+    surface: str = "counter"
     # Per-CMS weighted hit tally accumulated across pages (see crawler.py's
     # _detect_cms_signals/_resolve_detected_cms) — not persisted across a
     # crash/resume; low-stakes enough to just start over on that rare path.
@@ -179,6 +181,7 @@ def restore_job(run, estimate_result: dict | None = None) -> Job:
         markdown_pages=run.markdown_pages,
         markdown_bytes=run.markdown_bytes,
         markdown_state=run.markdown_state,
+        surface=run.surface,
     )
     JOBS[job.id] = job
     return job
