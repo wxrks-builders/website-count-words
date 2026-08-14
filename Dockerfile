@@ -16,12 +16,18 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1
 
-# Render injects $PORT; --proxy-headers makes Starlette trust Render's
-# X-Forwarded-Proto so OAuth redirect URLs come out as https:// instead of
-# http:// (Render terminates TLS in front of the container).
-# --workers 1 is required, not just a default: this app keeps crawl/job state
-# in in-process memory (see app/job_store.py), so more than one worker means
+# $PORT is honoured if the host injects one, defaulting to 8000 otherwise.
+#
+# --proxy-headers makes Starlette trust X-Forwarded-Proto/Host from whatever
+# terminates TLS in front of the container, so OAuth redirect URLs come out as
+# https:// against the real hostname rather than http:// against an internal one.
+#
+# --workers 1 is required, not just a default: this app keeps crawl/job state in
+# in-process memory (see app/job_store.py), so more than one worker means
 # requests get routed to processes that don't share that state. Explicit here
 # because uvicorn otherwise falls back to $WEB_CONCURRENCY if it's set, which
-# Render sets automatically based on instance size (e.g. 2 on a 2-CPU plan).
+# many hosts set automatically based on instance size.
+#
+# See DEPLOY.md for the rest of the requirements — persistent volume, health
+# check path, and the OAuth redirect URI needed per hostname.
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --proxy-headers --forwarded-allow-ips='*'"]

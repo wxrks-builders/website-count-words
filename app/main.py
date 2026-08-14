@@ -80,12 +80,22 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-# Render sets RENDER=true on every service; mark the session cookie Secure
-# only there so local dev over plain http:// still works.
+
+# Secure by default, opt out for local http:// development.
+#
+# This used to read RENDER, which the host set automatically — so the moment
+# the app moved off Render the flag silently went false and the session cookie
+# stopped being marked Secure in production. A missing variable must fail
+# closed, not open, so the default is now "on" and only an explicit
+# SECURE_COOKIES=false turns it off.
+SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "true").strip().lower() not in ("0", "false", "no", "off")
+if not SECURE_COOKIES:
+    logger.warning("SECURE_COOKIES is off — the session cookie will be sent over plain http. Local development only.")
+
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ["SESSION_SECRET"],
-    https_only=bool(os.environ.get("RENDER")),
+    https_only=SECURE_COOKIES,
 )
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(auth.router)
