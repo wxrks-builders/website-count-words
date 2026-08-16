@@ -127,6 +127,7 @@
         <span class="muted">Estimated total time</span>
         <div class="big" id="estimate-duration">—</div>
         <span class="muted" id="estimate-speed"></span>
+        <p class="estimate-pro-note" id="estimate-pro-note" style="display:none;"></p>
       </div>
       <div class="estimate-stats">
         <div class="estimate-stat">
@@ -262,7 +263,10 @@
 
   <script src="/static/app.js"></script>
   <script>
+    initBilling();
     initCrawlPage({
+      billingEnabled: {{ billing_enabled | tojson }},
+      isPro: {{ (user.is_pro if user else False) | tojson }},
       mode: {{ mode | tojson }},
       runId: {{ run_id | tojson }},
       sourceUrl: {{ source_url | tojson }},

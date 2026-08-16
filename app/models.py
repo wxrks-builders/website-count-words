@@ -11,6 +11,20 @@ class User(BaseModel):
     email: str
     name: str
     picture: str | None = None
+    # Billing. Written only by the Stripe webhook (app/billing.py) — never by a
+    # checkout redirect, which the browser can be sent to without ever paying.
+    plan: str = "free"
+    plan_status: str | None = None
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
+    plan_renews_at: str | None = None
+
+    @property
+    def is_pro(self) -> bool:
+        """Both halves matter: a subscription that lapsed keeps plan="pro" until
+        Stripe says otherwise, so status is what decides. "trialing" counts —
+        a trial that isn't the paid experience isn't a trial."""
+        return self.plan == "pro" and self.plan_status in ("active", "trialing")
 
 
 class PageResult(BaseModel):
@@ -43,6 +57,9 @@ class RunRecord(BaseModel):
     domain_scope: str = "all"
     # Comma-separated subdomains/folders left out of this crawl, as typed.
     exclusions: str | None = None
+    # Pages fetched at once — see app/plans.py. 0 on runs from before this was
+    # recorded, which restore_job treats as "resolve it fresh".
+    crawl_concurrency: int = 0
     language: str | None = None
     language_auto_detected: bool = False
     resume_state: dict | None = None

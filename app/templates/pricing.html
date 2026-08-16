@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Pricing — {{ surface.name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{% block body %}
+  {% include "_topbar.html" %}
+
+  <div class="page-wrap">
+    <h1 class="pricing-title">The only thing that changes is how long you wait.</h1>
+    <p class="subtitle pricing-lede">
+      Same crawler, same counting, same reports. Pro fetches
+      <strong>{{ pro_concurrency }}</strong> pages at once instead of
+      <strong>{{ free_concurrency }}</strong>, and starts ahead of everyone else
+      when the queue is busy. One subscription covers both Word Counter and Site
+      to Markdown — they're the same account.
+    </p>
+
+    <div class="plan-grid">
+      <div class="plan-card">
+        <div class="section-label">Free</div>
+        <div class="plan-price">£0</div>
+        <ul class="plan-features">
+          <li>{{ free_concurrency }} pages at a time</li>
+          <li>Unlimited crawls, unlimited pages</li>
+          <li>CSV export, Markdown ZIP, shareable reports</li>
+          <li>Waits its turn when the server is busy</li>
+        </ul>
+        {% if not user.is_pro %}<p class="muted plan-current">Your current plan</p>{% endif %}
+      </div>
+
+      <div class="plan-card plan-card-pro">
+        <div class="section-label">Pro</div>
+        <div class="plan-price">about {{ speedup }}× faster</div>
+        <ul class="plan-features">
+          <li><strong>{{ pro_concurrency }} pages at a time</strong></li>
+          <li>Skips the queue when crawls are waiting</li>
+          <li>Everything in Free</li>
+          <li>Cancel anytime, from your billing page</li>
+        </ul>
+        {% if user.is_pro %}
+          <p class="muted plan-current">Your current plan{% if user.plan_renews_at %} · renews <span class="run-date-iso" data-iso="{{ user.plan_renews_at }}"></span>{% endif %}</p>
+          <button type="button" class="secondary" data-billing-portal>Manage subscription</button>
+        {% else %}
+          <button type="button" id="upgrade-btn">Upgrade to Pro</button>
+        {% endif %}
+        <p class="field-error" id="billing-error" style="display:none;"></p>
+      </div>
+    </div>
+
+    <p class="muted pricing-fineprint">
+      About “{{ speedup }}× faster” is measured, not arithmetic. Pro fetches
+      {{ (pro_concurrency / free_concurrency) | round | int }}× as many pages at
+      once, but fetching is only part of the work — every page is also rendered
+      and its text extracted, and that competes for CPU. The honest number is
+      the smaller one.
+    </p>
+    <p class="muted pricing-fineprint">
+      It also assumes this app is what's slowing you down. A site that
+      rate-limits or blocks a heavier crawler caps every plan at the same place;
+      the report marks those pages, so you can see when that's what happened.
+    </p>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    initBilling();
+    formatRunDates();
+  </script>
+{% endblock %}

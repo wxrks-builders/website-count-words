@@ -7,6 +7,15 @@
   <div class="user-chip">
     {% if user.picture %}<img src="{{ user.picture }}" alt="">{% else %}<span class="avatar">{{ user.name[0] | upper }}</span>{% endif %}
     <span class="name">{{ user.name }}</span>
+    {% if billing_enabled %}
+      <span class="sep"></span>
+      {% if user.is_pro %}
+        <span class="plan-pill" title="Crawls run at full speed. Click to manage your subscription.">Pro</span>
+        <a href="#" data-billing-portal>Billing</a>
+      {% else %}
+        <a href="/pricing" class="upgrade-link">Upgrade</a>
+      {% endif %}
+    {% endif %}
     <span class="sep"></span>
     <a href="/logout">Log out</a>
   </div>

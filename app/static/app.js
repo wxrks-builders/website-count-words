@@ -71,6 +71,47 @@ function initHomeForm() {
   });
 }
 
+// Sends the browser to a Stripe-hosted page. Both endpoints answer with a URL
+// rather than redirecting, because they're called from fetch() — a 303 here
+// would be followed by the fetch and never by the window.
+async function goToStripe(path, errorEl) {
+  try {
+    const res = await fetch(path, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Could not reach billing");
+    if (data.already_pro) {
+      // Nothing to buy — send them to manage what they already have.
+      return goToStripe("/billing/portal", errorEl);
+    }
+    window.location.href = data.url;
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  }
+}
+
+function initBilling() {
+  const errorEl = document.getElementById("billing-error");
+  const upgradeBtn = document.getElementById("upgrade-btn");
+  if (upgradeBtn) {
+    upgradeBtn.addEventListener("click", () => {
+      upgradeBtn.disabled = true;
+      upgradeBtn.textContent = "Opening checkout…";
+      goToStripe("/billing/checkout", errorEl);
+    });
+  }
+  // The topbar "Billing" link appears on every signed-in page, so this is bound
+  // wherever app.js loads rather than only on the pricing page.
+  for (const el of document.querySelectorAll("[data-billing-portal]")) {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      goToStripe("/billing/portal", errorEl);
+    });
+  }
+}
+
 function badgeClass(status) {
   if (status === "completed") return "status-badge status-completed";
   if (status === "failed") return "status-badge status-failed";
@@ -651,6 +692,19 @@ function initCrawlPage(opts) {
       : `No sitemap found — this estimate is based only on pages discovered so far (approximately ${pagesText}), so it may be less accurate. Crawling all of them may take a while.`;
 
     estimateDurationEl.textContent = formatDuration(result.estimated_duration_seconds);
+    // The upsell sits on the estimate because this is the one screen where
+    // somebody is actively weighing up how long they're willing to wait.
+    const proEl = document.getElementById("estimate-pro-note");
+    if (proEl) {
+      const proSeconds = result.estimated_duration_seconds_pro;
+      const show = opts.billingEnabled && !opts.isPro && proSeconds;
+      proEl.style.display = show ? "" : "none";
+      if (show) {
+        proEl.innerHTML =
+          `about <strong>${formatDuration(proSeconds).replace(/^~/, "")}</strong> on Pro · ` +
+          `<a href="/pricing">See what that costs →</a>`;
+      }
+    }
     estimateSpeedEl.textContent =
       `${result.words_per_minute.toLocaleString("en-US")} words/min` +
       ` · ${result.pages_per_minute.toLocaleString("en-US")} pages/min`;

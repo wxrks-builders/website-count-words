@@ -51,6 +51,11 @@ class Job:
     # started later by _maybe_start_next_queued(), which has no payload to read
     # — same reason domain_scope and capture_markdown are here.
     exclusions: str | None = None
+    # Pages fetched at once — the whole of this crawl's speed. Resolved once at
+    # start from the owner's plan and whatever else is running (app/plans.py),
+    # and carried on the job because a *queued* crawl is launched later by
+    # _maybe_start_next_queued(), which has no request to resolve it from.
+    concurrency: int = 0
     language_setting: str | None = None
     # BFSDeepCrawlStrategy's on_state_change snapshot — lets a paused crawl
     # (see run_crawl's pause_at_words) resume later from the same frontier.
@@ -120,6 +125,7 @@ class Job:
             "detected_language": self.detected_language,
             "domain_scope": self.domain_scope,
             "exclusions": self.exclusions,
+            "concurrency": self.concurrency,
             "language_setting": self.language_setting,
             "estimate_result": self.estimate_result,
             "stopped_reason": self.stopped_reason,
@@ -155,9 +161,17 @@ def list_queued_jobs() -> list[Job]:
     return [JOBS[job_id] for job_id in QUEUE if job_id in JOBS]
 
 
-def enqueue(job_id: str) -> int:
-    """Adds a job to the back of the wait list, returning its 1-based
-    position."""
+def enqueue(job_id: str, front: bool = False) -> int:
+    """Adds a job to the wait list, returning its 1-based position.
+
+    front=True puts a paid crawl ahead of the free ones already waiting, which
+    is most of what "faster" means when the box is busy — no amount of page
+    concurrency helps a crawl that hasn't started. It jumps the queued jobs, not
+    the running ones; nothing is ever interrupted.
+    """
+    if front:
+        QUEUE.insert(0, job_id)
+        return 1
     QUEUE.append(job_id)
     return len(QUEUE)
 
@@ -194,6 +208,10 @@ def restore_job(run, estimate_result: dict | None = None) -> Job:
         detected_language=run.language if run.language_auto_detected else None,
         domain_scope=run.domain_scope,
         exclusions=run.exclusions,
+        # Restored rather than re-resolved: a crawl picked back up after a crash
+        # should run at the speed it was sold, even if the owner's plan lapsed
+        # or the box is busier now than when it started.
+        concurrency=run.crawl_concurrency,
         language_setting=None if run.language_auto_detected else run.language,
         resume_state=run.resume_state,
         restored_login_blocked_count=run.login_blocked_count,

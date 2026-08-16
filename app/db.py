@@ -139,10 +139,37 @@ async def _ensure_columns() -> None:
         # app/url_policy.py.
         ("duplicate_count", "ALTER TABLE runs ADD COLUMN duplicate_count INTEGER NOT NULL DEFAULT 0"),
         ("exclusions", "ALTER TABLE runs ADD COLUMN exclusions TEXT"),
+        # How many pages this run crawled at once — see app/plans.py. Persisted
+        # so a resumed crawl keeps the speed it was started with, rather than
+        # silently dropping to whatever the resuming caller resolves.
+        ("crawl_concurrency", "ALTER TABLE runs ADD COLUMN crawl_concurrency INTEGER NOT NULL DEFAULT 0"),
     ]:
         if column not in existing:
             await conn.execute(ddl)
             await conn.commit()
+
+    # The users table has never been migrated before — everything above is the
+    # runs table. Billing state lives here because it belongs to the account,
+    # not to any one crawl.
+    cur = await conn.execute("PRAGMA table_info(users)")
+    existing_user_cols = {row["name"] for row in await cur.fetchall()}
+    for column, ddl in [
+        ("plan", "ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'"),
+        ("plan_status", "ALTER TABLE users ADD COLUMN plan_status TEXT"),
+        ("stripe_customer_id", "ALTER TABLE users ADD COLUMN stripe_customer_id TEXT"),
+        ("stripe_subscription_id", "ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT"),
+        ("plan_renews_at", "ALTER TABLE users ADD COLUMN plan_renews_at TEXT"),
+    ]:
+        if column not in existing_user_cols:
+            await conn.execute(ddl)
+            await conn.commit()
+    if "stripe_customer_id" not in existing_user_cols:
+        # A Stripe webhook arrives knowing only the customer id, so that lookup
+        # has to be as cheap as the one by primary key.
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id)"
+        )
+        await conn.commit()
 
     cur = await conn.execute("PRAGMA table_info(estimate_history)")
     existing_estimate_cols = {row["name"] for row in await cur.fetchall()}
@@ -171,6 +198,21 @@ def _conn() -> aiosqlite.Connection:
     return _connection
 
 
+def _row_to_user(row: aiosqlite.Row) -> User:
+    return User(
+        id=row["id"],
+        google_sub=row["google_sub"],
+        email=row["email"],
+        name=row["name"],
+        picture=row["picture"],
+        plan=row["plan"],
+        plan_status=row["plan_status"],
+        stripe_customer_id=row["stripe_customer_id"],
+        stripe_subscription_id=row["stripe_subscription_id"],
+        plan_renews_at=row["plan_renews_at"],
+    )
+
+
 async def get_or_create_user(google_sub: str, email: str, name: str, picture: str | None) -> tuple[User, bool]:
     """Returns the user and whether this call is what created them — the caller
     seeds the sample run on a genuinely new account, and only once."""
@@ -178,8 +220,7 @@ async def get_or_create_user(google_sub: str, email: str, name: str, picture: st
     async with conn.execute("SELECT * FROM users WHERE google_sub = ?", (google_sub,)) as cur:
         row = await cur.fetchone()
     if row is not None:
-        user = User(id=row["id"], google_sub=row["google_sub"], email=row["email"], name=row["name"], picture=row["picture"])
-        return user, False
+        return _row_to_user(row), False
 
     now = datetime.now(timezone.utc).isoformat()
     cur = await conn.execute(
@@ -187,16 +228,50 @@ async def get_or_create_user(google_sub: str, email: str, name: str, picture: st
         (google_sub, email, name, picture, now),
     )
     await conn.commit()
-    return User(id=cur.lastrowid, google_sub=google_sub, email=email, name=name, picture=picture), True
+    return await get_user(cur.lastrowid), True
 
 
 async def get_user(user_id: int) -> User | None:
     conn = _conn()
     async with conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cur:
         row = await cur.fetchone()
-    if row is None:
-        return None
-    return User(id=row["id"], google_sub=row["google_sub"], email=row["email"], name=row["name"], picture=row["picture"])
+    return _row_to_user(row) if row else None
+
+
+async def get_user_by_stripe_customer(customer_id: str) -> User | None:
+    """How a Stripe webhook finds the account: the event carries a customer id
+    and nothing else that identifies us."""
+    conn = _conn()
+    async with conn.execute("SELECT * FROM users WHERE stripe_customer_id = ?", (customer_id,)) as cur:
+        row = await cur.fetchone()
+    return _row_to_user(row) if row else None
+
+
+async def set_stripe_customer(user_id: int, customer_id: str) -> None:
+    conn = _conn()
+    await conn.execute("UPDATE users SET stripe_customer_id = ? WHERE id = ?", (customer_id, user_id))
+    await conn.commit()
+
+
+async def save_subscription_state(
+    user_id: int,
+    plan: str,
+    plan_status: str | None,
+    stripe_subscription_id: str | None,
+    plan_renews_at: str | None,
+) -> None:
+    """Writes plan state outright rather than adjusting it, which is what makes
+    a redelivered Stripe webhook a no-op instead of a double-apply."""
+    conn = _conn()
+    await conn.execute(
+        """
+        UPDATE users
+           SET plan = ?, plan_status = ?, stripe_subscription_id = ?, plan_renews_at = ?
+         WHERE id = ?
+        """,
+        (plan, plan_status, stripe_subscription_id, plan_renews_at, user_id),
+    )
+    await conn.commit()
 
 
 def _row_to_run(row: aiosqlite.Row) -> RunRecord:
@@ -215,6 +290,7 @@ def _row_to_run(row: aiosqlite.Row) -> RunRecord:
         duplicate_count=row["duplicate_count"],
         domain_scope=row["domain_scope"],
         exclusions=row["exclusions"],
+        crawl_concurrency=row["crawl_concurrency"],
         language=row["language"],
         language_auto_detected=bool(row["language_auto_detected"]),
         resume_state=json.loads(resume_state_json) if resume_state_json else None,
@@ -297,6 +373,7 @@ async def save_run(
     duplicate_count: int = 0,
     domain_scope: str = "all",
     exclusions: str | None = None,
+    crawl_concurrency: int = 0,
     language: str | None = None,
     language_auto_detected: bool = False,
     resume_state: dict | None = None,
@@ -314,10 +391,10 @@ async def save_run(
         """
         INSERT INTO runs
             (id, source_url, user_id, created_at, status, total_words, page_count, limit_reached,
-             login_blocked_count, duplicate_count, domain_scope, exclusions, language, language_auto_detected,
-             resume_state_json, pages_json,
+             login_blocked_count, duplicate_count, domain_scope, exclusions, crawl_concurrency,
+             language, language_auto_detected, resume_state_json, pages_json,
              capture_markdown, markdown_pages, markdown_bytes, markdown_state, surface)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             status=excluded.status,
             total_words=excluded.total_words,
@@ -327,6 +404,7 @@ async def save_run(
             duplicate_count=excluded.duplicate_count,
             domain_scope=excluded.domain_scope,
             exclusions=excluded.exclusions,
+            crawl_concurrency=excluded.crawl_concurrency,
             language=excluded.language,
             language_auto_detected=excluded.language_auto_detected,
             resume_state_json=excluded.resume_state_json,
@@ -341,8 +419,8 @@ async def save_run(
             # created_at is only ever set on first insert (see ON CONFLICT above) —
             # periodic checkpointing during a crawl must not keep bumping it forward.
             run_id, source_url, user_id, now, status, total_words, len(pages), int(limit_reached),
-            login_blocked_count, duplicate_count, domain_scope, exclusions, language, int(language_auto_detected),
-            resume_state_json, pages_json,
+            login_blocked_count, duplicate_count, domain_scope, exclusions, crawl_concurrency,
+            language, int(language_auto_detected), resume_state_json, pages_json,
             int(capture_markdown), markdown_pages, markdown_bytes, markdown_state, surface,
         ),
     )

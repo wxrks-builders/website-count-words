@@ -44,6 +44,62 @@ restart and a redeploy.
 - If the volume is missing, SQLite is created in the container filesystem and
   every run disappears on the next deploy, silently.
 
+## Crawl speed and the memory ceiling
+
+How long a crawl takes is almost entirely one number: how many pages it fetches
+at once (`app/plans.py`). Free gets `CRAWL_CONCURRENCY_FREE`, paid accounts get
+`CRAWL_CONCURRENCY_PRO`, and `CRAWL_PAGE_BUDGET` caps the total in flight across
+every running crawl at once.
+
+That last one is not optional. crawl4ai builds a separate dispatcher per crawl,
+so the per-crawl numbers can't see each other — without the budget,
+`MAX_CONCURRENT_CRAWLS` paid crawls together would put
+`MAX_CONCURRENT_CRAWLS x CRAWL_CONCURRENCY_PRO` Chromium pages on the box and
+thrash the CPU long before `MEMORY_LIMIT_MB` noticed.
+
+Size them to the host. On 6 vCPU / 16 GB the shipped defaults are 4 / 16 / 24,
+with `MEMORY_LIMIT_MB=12000`. Rough rule: budget about 4 pages per vCPU, and set
+`MEMORY_LIMIT_MB` to roughly three quarters of the container's limit — the
+crawler polls its own RSS and stops a crawl before reaching it rather than being
+OOM-killed.
+
+The speedup is real but sublinear: fetching is only part of the work, and
+rendering and text extraction compete for CPU. Measured against a local server
+with fixed latency, 120 pages: 2 wide took 34.8s, 4 wide 19.4s, 16 wide 7.0s —
+so 4 -> 16 is 2.8x, not 4x. `CRAWL_SCALING_EFFICIENCY` is what keeps the figure
+quoted to customers in line with that; re-measure it if the host changes.
+
+## Billing (Stripe) — optional
+
+Leave `STRIPE_SECRET_KEY` blank and billing does not exist: `/pricing`,
+`/billing/*` and `/stripe/webhook` all 404, the UI never links to them, and
+everyone crawls at the free speed. Nothing else changes.
+
+To turn it on, set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID` (the recurring
+`price_...`, not a `prod_...`) and `STRIPE_WEBHOOK_SECRET`, then register the
+endpoint in Stripe:
+
+```
+https://<host>/stripe/webhook
+```
+
+subscribed to `checkout.session.completed`, `customer.subscription.created`,
+`customer.subscription.updated` and `customer.subscription.deleted`.
+
+**The webhook is the only thing that grants Pro.** The checkout success URL
+deliberately grants nothing — a browser can be pointed at it without paying — so
+if `STRIPE_WEBHOOK_SECRET` is wrong, every event is rejected and paying
+customers stay on the free tier while their card is charged. Verify it after
+any deploy that changes the endpoint:
+
+```
+stripe listen --forward-to https://<host>/stripe/webhook   # prints the secret
+stripe trigger customer.subscription.updated               # expect 200, not 400
+```
+
+Both hostnames share one account (`app/surfaces.py`), so one subscription covers
+both products. Only one Stripe price is needed.
+
 ## Health check
 
 `GET /login` — public, cheap, and doesn't touch the database. `GET /` is also
@@ -90,3 +146,7 @@ curl -s  https://<host>/ | grep -o '<title>[^<]*' # the right product name
 
 Then sign in — that is what proves the OAuth redirect URI is registered — and
 run a small crawl to confirm the volume is writable and live progress streams.
+
+If billing is configured, also send one real event (`stripe trigger
+customer.subscription.updated`) and confirm it returns 200. A 400 means the
+signing secret is wrong, and nobody who pays will actually become Pro.

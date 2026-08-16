@@ -51,8 +51,14 @@ def app_env(monkeypatch, tmp_path):
 
     from app.auth import get_current_user, require_user, require_user_api
 
-    owner = type("U", (), {"id": 1, "email": "o@x.c", "name": "Owner", "picture": None})()
-    other = type("U", (), {"id": 2, "email": "e@x.c", "name": "Other", "picture": None})()
+    from app.models import User
+
+    # Real User models rather than ad-hoc stubs: the routes and templates read
+    # whatever the User model exposes (plan state, is_pro), and a stub that
+    # drifts from it fails as a template error rather than as a useful test.
+    owner = User(id=1, google_sub="a", email="o@x.c", name="Owner")
+    other = User(id=2, google_sub="b", email="e@x.c", name="Other")
+    pro = User(id=1, google_sub="a", email="o@x.c", name="Owner", plan="pro", plan_status="active")
     current = {"user": owner}
 
     main.app.dependency_overrides[require_user] = lambda: current["user"]
@@ -64,7 +70,8 @@ def app_env(monkeypatch, tmp_path):
         run(db.get_or_create_user("b", "e@x.c", "Other", None))
         yield type("Env", (), {
             "client": client, "db": db, "main": main, "surfaces": surfaces,
-            "store": markdown_store, "owner": owner, "other": other, "current": current,
+            "store": markdown_store, "owner": owner, "other": other, "pro": pro,
+            "current": current,
         })()
     main.app.dependency_overrides.clear()
 
@@ -285,3 +292,59 @@ def test_the_surface_is_recorded_on_the_run(app_env):
     save(app_env, surface="markdown")
     assert run(app_env.db.get_run("r")).surface == "markdown"
     assert run(app_env.db.get_run("r")).surface != app_env.surfaces.COUNTER.key
+
+
+# ------------------------------------------------------------------- billing
+
+def test_billing_routes_do_not_exist_when_stripe_is_unconfigured(app_env):
+    """With no key the whole feature is off, and 404 rather than 503 because
+    the UI never links to it either — same shape as email with no Mailgun key."""
+    assert app_env.client.get("/pricing").status_code == 404
+    assert app_env.client.post("/billing/checkout").status_code == 404
+    assert app_env.client.post("/stripe/webhook", content=b"{}").status_code == 404
+
+
+def test_the_upgrade_prompt_only_shows_when_there_is_something_to_buy(app_env, monkeypatch):
+    from app import billing
+
+    assert "/pricing" not in app_env.client.get("/").text
+
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    assert "/pricing" in app_env.client.get("/").text
+
+
+def test_a_pro_account_is_offered_billing_not_an_upgrade(app_env, monkeypatch):
+    from app import billing
+
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    app_env.current["user"] = app_env.pro
+    body = app_env.client.get("/").text
+    assert "plan-pill" in body, "a paying account should be marked as such"
+    assert "/pricing" not in body, "and not asked to upgrade again"
+
+
+def test_the_pricing_page_never_promises_more_than_was_measured(app_env, monkeypatch):
+    """Guards the number itself. Pro fetches 4x the pages but measured 2.8x, and
+    the page must quote the smaller one — see plans.SCALING_EFFICIENCY."""
+    from app import billing, plans
+
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    body = app_env.client.get("/pricing").text
+    raw = round(plans.CONCURRENCY_PRO / plans.CONCURRENCY_FREE)
+    assert f"{plans.advertised_speedup()}× faster" in body
+    assert plans.advertised_speedup() < raw
+
+
+def test_a_webhook_without_a_valid_signature_is_rejected(app_env, monkeypatch):
+    """The plan is only ever written from a signature-verified event — a browser
+    can reach success_url without having paid."""
+    from app import billing
+
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    monkeypatch.setattr(billing, "STRIPE_WEBHOOK_SECRET", "whsec_test")
+    res = app_env.client.post(
+        "/stripe/webhook",
+        content=b'{"type":"customer.subscription.updated"}',
+        headers={"stripe-signature": "t=1,v1=forged"},
+    )
+    assert res.status_code == 400

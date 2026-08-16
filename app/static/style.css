@@ -213,6 +213,61 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
 
 .field-error { color: var(--danger-text); font-size: 0.9rem; margin-top: 0.5rem; }
 
+/* ---------- Plan ---------- */
+.plan-pill {
+  background: var(--brand);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.user-chip a.upgrade-link { color: var(--brand); font-weight: 600; }
+
+/* The line under the estimate's headline duration — the one screen where
+   somebody is actively deciding how long they'll wait. */
+.estimate-pro-note {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.estimate-pro-note strong { color: var(--brand); }
+
+.pricing-title {
+  font-size: clamp(1.8rem, 1.2rem + 2.4vw, 2.6rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0 0 16px;
+  text-wrap: balance;
+}
+.pricing-lede { max-width: 40rem; }
+.pricing-fineprint { margin-top: 32px; font-size: 13px; max-width: 42rem; }
+
+.plan-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  margin-top: 36px;
+}
+.plan-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+.plan-card-pro { border-color: var(--brand); }
+.plan-price {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 10px 0 18px;
+}
+.plan-features { margin: 0 0 20px; padding-left: 18px; font-size: 14px; line-height: 1.9; color: var(--muted); }
+.plan-features strong { color: var(--text); }
+.plan-current { font-size: 13px; margin: 0 0 12px; }
+
 /* Folded away by default: the exclusions field is for the crawl that needs it,
    not the common one, so it shouldn't compete with the URL box for attention. */
 .crawl-advanced { margin-top: 10px; font-size: 13px; }

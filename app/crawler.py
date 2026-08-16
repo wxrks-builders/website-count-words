@@ -27,6 +27,7 @@ from app import db, markdown_store, surfaces
 from app.job_store import dequeue_next, get_job, list_active_jobs
 from app.models import PageResult
 from app.notifications import send_crawl_notification
+from app.plans import CONCURRENCY_FLOOR, active_page_load, resolve_concurrency, speedup_over
 from app.url_policy import ExclusionFilter, FrontierDedupeFilter, canonical_key, parse_exclusions
 from app.word_count import count_words
 
@@ -296,7 +297,11 @@ def _duplicate_of(job, result, text: str) -> str | None:
 
 
 PAUSE_AT_WORDS = 50_000
-MAX_CONCURRENT_CRAWLS = 3
+# Raised from 3 alongside the per-crawl concurrency work: total page load is now
+# bounded by plans.PAGE_BUDGET rather than by this number, so this is about how
+# many people can be served at once, not how hard the box gets pushed. The extra
+# slot is what keeps a paid crawl from waiting behind three free ones.
+MAX_CONCURRENT_CRAWLS = int(os.environ.get("MAX_CONCURRENT_CRAWLS", "4"))
 _CHECKPOINT_EVERY = 20
 # How long a crawl can go with zero new page results before it's treated as
 # hung (a wedged fetch/browser context, not just a slow site) and cancelled
@@ -404,6 +409,7 @@ async def _checkpoint(job, languages: list[str]) -> None:
         duplicate_count=job.duplicate_count,
         domain_scope=job.domain_scope,
         exclusions=job.exclusions,
+        crawl_concurrency=job.concurrency,
         language=",".join(languages) if languages else None,
         language_auto_detected=job.detected_language is not None,
         resume_state=_recovered_resume_state(job),
@@ -547,6 +553,14 @@ async def _build_estimate_result(job, url: str, filters: list[URLFilter]) -> dic
     # it was actively occupying a slot for basically this entire run.
     concurrent_crawls = len(list_active_jobs()) + 1
 
+    # What the same crawl would take on Pro. Linear in page concurrency, which
+    # holds while this app is the bottleneck and stops holding once the site
+    # being crawled is — so the UI states it as an approximation. None when the
+    # crawl is already running at Pro speed, which is how the panel knows not to
+    # advertise anything.
+    speedup = speedup_over(job.concurrency)
+    pro_duration_seconds = round(estimated_duration_seconds / speedup) if speedup > 1 else None
+
     return {
         "pages_fetched": pages_fetched,
         "discovered_total": discovered_total,
@@ -561,6 +575,8 @@ async def _build_estimate_result(job, url: str, filters: list[URLFilter]) -> dic
         "words_per_minute": round(words_per_minute),
         "pages_per_minute": round(pages_per_minute, 1),
         "estimated_duration_seconds": round(estimated_duration_seconds),
+        "estimated_duration_seconds_pro": pro_duration_seconds,
+        "concurrency": job.concurrency,
         "concurrent_crawls": concurrent_crawls,
     }
 
@@ -578,6 +594,7 @@ def estimate_result_from_snapshot(snapshot: dict) -> dict | None:
         return None
     total_pages_estimate = snapshot["estimated_total_pages"]
     estimated_total_words = snapshot["estimated_total_words"]
+    concurrency = snapshot.get("crawl_concurrency") or 0
     avg_words_per_page = round(estimated_total_words / total_pages_estimate) if total_pages_estimate else 0
     return {
         "pages_fetched": snapshot["pages_fetched"],
@@ -593,6 +610,14 @@ def estimate_result_from_snapshot(snapshot: dict) -> dict | None:
         "words_per_minute": snapshot["words_per_minute"],
         "pages_per_minute": snapshot["pages_per_minute"],
         "estimated_duration_seconds": snapshot["estimated_duration_seconds"],
+        # Not a stored column — recomputed from the same ratio the live panel
+        # uses, so a restored estimate still shows the Pro comparison.
+        "estimated_duration_seconds_pro": (
+            round(snapshot["estimated_duration_seconds"] / speedup_over(concurrency))
+            if concurrency and speedup_over(concurrency) > 1
+            else None
+        ),
+        "concurrency": concurrency,
         "concurrent_crawls": snapshot["concurrent_crawls"],
     }
 
@@ -677,6 +702,10 @@ async def _maybe_start_next_queued() -> None:
     if job is None:
         return
     language = job.language_setting or job.detected_language
+    # Re-resolved rather than reused: this job was sized when it was queued,
+    # against a box that was full. It's starting now precisely because that
+    # changed, so it should get whatever the budget can afford at this moment.
+    job.concurrency = resolve_concurrency(await db.get_user(job.user_id), active_page_load(list_active_jobs()))
     job.status = "starting"
     # Exclusions aren't passed: run_crawl reads them straight off the job,
     # which is where POST /crawl already put them — same as capture_markdown.
@@ -728,6 +757,14 @@ async def run_crawl(
     # whatever the job already carries from POST /crawl or a restore.
     if exclusions is not None:
         job.exclusions = exclusions
+
+    # Every normal path sets this before getting here (POST /crawl, the queue,
+    # a restore). This covers the ones that don't: a run saved before the
+    # column existed, or a resume of one.
+    if not job.concurrency:
+        job.concurrency = resolve_concurrency(
+            await db.get_user(job.user_id), active_page_load(list_active_jobs())
+        )
 
     # Resolved once here rather than per page: a run that starts with the disk
     # already tight never begins capturing, instead of writing a handful of
@@ -906,7 +943,12 @@ async def run_crawl(
             config = CrawlerRunConfig(
                 deep_crawl_strategy=strategy,
                 stream=True,
-                semaphore_count=2,
+                # The single number that decides how fast this crawl is: how
+                # many pages are in flight at once. crawl4ai turns it into
+                # MemoryAdaptiveDispatcher(max_session_permit=N). Resolved per
+                # crawl from the owner's plan and the shared budget — see
+                # app/plans.py.
+                semaphore_count=job.concurrency or CONCURRENCY_FLOOR,
                 # crawl4ai's default (60s) means a single stuck page can hold
                 # up cancellation/pause for that long, since crawl4ai's own
                 # cleanup has to wait for an in-flight fetch to finish or
@@ -1082,6 +1124,7 @@ async def run_crawl(
             duplicate_count=job.duplicate_count,
             domain_scope=job.domain_scope,
             exclusions=job.exclusions,
+            crawl_concurrency=job.concurrency,
             language=",".join(languages) if languages else None,
             language_auto_detected=job.detected_language is not None,
             resume_state=job.resume_state,

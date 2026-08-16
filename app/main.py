@@ -19,12 +19,13 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app import auth, db, markdown_store, report, surfaces
+from app import auth, billing, db, markdown_store, report, surfaces
 from app.auth import get_current_user, require_admin, require_user, require_user_api
 from app.crawler import MAX_CONCURRENT_CRAWLS, PAUSE_AT_WORDS, estimate_result_from_snapshot, run_crawl
 from app.job_store import create_job, enqueue, get_job, list_active_jobs, list_queued_jobs, restore_job
 from app.models import CrawlRequest, ResumeRequest, ShareEmailRequest, ShareToggleRequest, User
 from app.notifications import absolute_url, remember_origin, send_share_notification
+from app.plans import active_page_load, resolve_concurrency
 from app.templates import templates
 from app.url_policy import parse_exclusions
 
@@ -100,6 +101,7 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(auth.router)
+app.include_router(billing.router)
 
 
 @app.middleware("http")
@@ -231,6 +233,10 @@ async def start_crawl(payload: CrawlRequest, request: Request, user: User = Depe
     # values to launch with later.
     job.domain_scope = payload.domain_scope
     job.exclusions = payload.exclusions
+    # How fast this crawl runs. Resolved here rather than inside run_crawl so a
+    # queued job already knows what it was promised, and so the value is fixed
+    # against the box as it is right now (see app/plans.py).
+    job.concurrency = resolve_concurrency(user, active_page_load(list_active_jobs()))
     job.language_setting = payload.language
     # Set here rather than only passed to run_crawl below, because a queued job
     # is started later by _maybe_start_next_queued, which has no payload — the
@@ -242,7 +248,10 @@ async def start_crawl(payload: CrawlRequest, request: Request, user: User = Depe
 
     if at_capacity:
         job.status = "queued"
-        position = enqueue(job.id)
+        # Paid crawls jump the waiting free ones. When the box is full this is
+        # most of what "faster" means — page concurrency does nothing for a
+        # crawl that hasn't started yet.
+        position = enqueue(job.id, front=user.is_pro)
         return JSONResponse({"cached": False, "run_id": job.id, "queued": True, "position": position})
 
     job.task = asyncio.create_task(
