@@ -293,7 +293,7 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
      before the report's own tables, and without it the offer looked attached
      to data it has nothing to do with. */
   margin: 20px 0 36px;
-  padding: 15px 44px 15px 20px;
+  padding: 15px 20px;
   border-radius: 10px;
   background: var(--promo-ink);
   color: var(--promo-paper);
@@ -331,33 +331,6 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
   color: var(--promo-paper);
 }
 .promo .button.secondary:hover { background: transparent; border-color: var(--promo-paper); }
-
-/* Sits inside the padding reserved for it on the right. Given a border so it
-   reads as a control rather than a stray glyph — at this size on near-black,
-   an unadorned x disappears. */
-button.promo-dismiss {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  background: none;
-  border: 1px solid rgba(241, 239, 233, 0.22);
-  border-radius: 6px;
-  color: var(--promo-quiet);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-}
-button.promo-dismiss:hover {
-  background: rgba(241, 239, 233, 0.1);
-  border-color: rgba(241, 239, 233, 0.45);
-  color: var(--promo-paper);
-}
 
 /* Mint would read as another accent here; sand says "not the real thing". */
 .promo-preview {

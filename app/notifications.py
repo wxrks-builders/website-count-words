@@ -199,6 +199,8 @@ async def send_share_notification(
     page_count: int | None = None,
     surface=None,
 ) -> None:
+    from app.promos import share_email_promo
+
     surface = surface or surfaces.DEFAULT
     hero_stats = []
     if total_words is not None and page_count is not None:
@@ -213,6 +215,9 @@ async def send_share_notification(
         intro_text="They ran a word count on this site and gave you access to the full report.",
         hero_stats=hero_stats,
         stats=[],
+        # The recipient isn't a user, which is exactly who this pitch is for.
+        promo=share_email_promo(source_url, total_words, surface),
+        pricing_url=absolute_url("/pricing", surface),
         cta_url=share_url,
         cta_label="View report",
         footer_note=f"You're getting this because someone shared a {surface.name} report with you.",

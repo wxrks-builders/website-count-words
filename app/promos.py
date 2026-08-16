@@ -185,6 +185,21 @@ def home_pitch(recent_runs, surface) -> dict | None:
     return None
 
 
+def share_email_promo(source_url: str, total_words: int | None, surface) -> dict | None:
+    """The pitch for the email that tells somebody a report was shared with them.
+
+    wxrks only, never Pro: the reader here isn't the account holder and can't
+    buy a subscription for somebody else's account. They are, though, the
+    audience this whole pitch was designed around — a person who isn't a user,
+    looking at a word count because a translation decision is being made.
+    """
+    if surface is None or surface.key != surfaces.COUNTER.key:
+        return None
+    if not total_words or total_words < WXRKS_MIN_WORDS:
+        return None
+    return {"kind": "wxrks", **_wxrks_block(source_url, total_words, "share_email")}
+
+
 def email_promo(
     source_url: str,
     total_words: int,

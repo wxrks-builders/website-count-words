@@ -56,10 +56,9 @@
     </div>
 
     {# After their own runs, not before: this page belongs to the person using
-       it. Shares the dismissal key with the report banner, so turning it off
-       once turns it off everywhere. #}
+       it. #}
     {% if wxrks_pitch %}
-    <aside class="promo promo-wxrks" data-promo-dismiss="wxrks-pitch" style="margin-top:36px;">
+    <aside class="promo promo-wxrks" style="margin-top:36px;">
       <p class="promo-title">
         Your last crawl of {{ wxrks_pitch.domain }} found
         <strong>{{ "{:,}".format(wxrks_pitch.total_words) }}</strong> words.
@@ -71,7 +70,6 @@
       <a class="button" href="{{ wxrks_pitch.url }}" target="_blank" rel="noopener">
         What that costs →
       </a>
-      <button type="button" class="promo-dismiss" title="Don't show this again">×</button>
     </aside>
     {% endif %}
   </div>
@@ -80,7 +78,6 @@
   <script>
     initUserMenu();
     initBilling();
-    initPromoDismiss();
     initHomeForm();
     formatRunDates();
   </script>

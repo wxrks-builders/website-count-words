@@ -141,3 +141,46 @@ class TestOnePromoAtMost:
         monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
         send(duration_seconds=SLOW, crawl_concurrency=4, is_pro=True)
         assert "Compare plans" not in sent["data"]["html"]
+
+
+class TestShareEmail:
+    """The email telling somebody a report was shared with them. That reader
+    isn't a user at all, which is the audience this pitch was designed for."""
+
+    def _share(self, **kw):
+        body = dict(
+            to_email="them@b.c", shared_by="Rodrigo", source_url="https://www.clay.com",
+            share_url="https://wordcounter.wxrks.app/share/r",
+            total_words=662_000, page_count=100, surface=surfaces.COUNTER,
+        )
+        body.update(kw)
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(notifications.send_share_notification(**body))
+        finally:
+            loop.close()
+
+    def test_it_renders_and_carries_the_pitch(self, sent):
+        self._share()
+        html = sent["data"]["html"]
+        assert "View report" in html, "the email's own job still comes first"
+        assert "words to translate" in html
+        assert "utm_medium=share_email" in html
+
+    def test_never_pro(self, sent):
+        """The reader can't buy a subscription for somebody else's account."""
+        self._share()
+        assert "Compare plans" not in sent["data"]["html"]
+
+    def test_no_pitch_on_the_markdown_surface(self, sent):
+        self._share(surface=surfaces.MARKDOWN)
+        assert "words to translate" not in sent["data"]["html"]
+
+    def test_no_pitch_when_the_report_is_small(self, sent):
+        self._share(total_words=200)
+        assert "words to translate" not in sent["data"]["html"]
+
+    def test_a_share_without_a_word_count_still_sends(self, sent):
+        """total_words is optional on this sender — it must not blow up."""
+        self._share(total_words=None, page_count=None)
+        assert "View report" in sent["data"]["html"]

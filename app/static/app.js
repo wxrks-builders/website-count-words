@@ -141,31 +141,6 @@ function initBilling() {
   }
 }
 
-// Every banner is closable and remembers it, keyed by the attribute's value.
-// The same pitch uses a different key for the owner and for a shared link:
-// localStorage is per-browser, so those only ever collide in the one browser
-// that sees both — the owner's, checking their own share link.
-function initPromoDismiss() {
-  for (const promo of document.querySelectorAll("[data-promo-dismiss]")) {
-    // A preview is something an admin asked to see, so dismissing it — or
-    // having dismissed the real one earlier — must not hide it.
-    if (promo.querySelector(".promo-preview")) continue;
-
-    const key = "promo-dismissed:" + promo.dataset.promoDismiss;
-    if (localStorage.getItem(key)) {
-      promo.style.display = "none";
-      continue;
-    }
-    const button = promo.querySelector(".promo-dismiss");
-    if (button) {
-      button.addEventListener("click", () => {
-        localStorage.setItem(key, "1");
-        promo.style.display = "none";
-      });
-    }
-  }
-}
-
 function badgeClass(status) {
   if (status === "completed") return "status-badge status-completed";
   if (status === "failed") return "status-badge status-failed";

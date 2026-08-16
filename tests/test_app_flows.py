@@ -554,7 +554,6 @@ def test_the_home_page_pitches_the_last_crawl_worth_translating(app_env):
     body = app_env.client.get("/", headers=counter_host(app_env)).text
     assert "wxrks.com" in body
     assert "Your last crawl of" in body
-    assert "promo-dismiss" in body
 
 
 def test_the_home_page_says_nothing_before_a_first_crawl(app_env):
@@ -562,17 +561,15 @@ def test_the_home_page_says_nothing_before_a_first_crawl(app_env):
     assert "wxrks.com" not in body
 
 
-def test_the_owners_dismissal_does_not_follow_them_to_their_share_link(app_env):
-    """Both audiences can put the banner away — but under different keys, or the
-    owner checking their own share link sees it already hidden and concludes the
-    feature is broken."""
+def test_the_offer_cannot_be_dismissed(app_env):
+    """Decided: the offer stays on every report, for the owner and for anyone
+    they share it with. Nothing client-side hides it, which also means the one
+    person checking whether it works can't accidentally silence it."""
     save(app_env, total_words=662_000)
     run(app_env.db.set_run_public("r", True))
 
-    owner = app_env.client.get("/crawl/r", headers=counter_host(app_env)).text
-    shared = app_env.client.get("/share/r", headers=counter_host(app_env)).text
-
-    assert 'data-promo-dismiss="wxrks-pitch"' in owner
-    assert 'data-promo-dismiss="wxrks-pitch-shared"' in shared
-    for body in (owner, shared):
-        assert "promo-dismiss" in body, "nobody is stuck with a banner they can't close"
+    for url in ("/crawl/r", "/share/r", "/"):
+        body = app_env.client.get(url, headers=counter_host(app_env)).text
+        assert "promo-wxrks" in body, url
+        assert "promo-dismiss" not in body, url
+        assert "data-promo-dismiss" not in body, url
