@@ -8,6 +8,7 @@ import logging
 import math
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from urllib.parse import quote_plus, urlsplit
 
 from dotenv import load_dotenv
@@ -24,8 +25,9 @@ from app.auth import get_current_user, require_admin, require_user, require_user
 from app.crawler import MAX_CONCURRENT_CRAWLS, PAUSE_AT_WORDS, estimate_result_from_snapshot, run_crawl
 from app.job_store import create_job, enqueue, get_job, list_active_jobs, list_queued_jobs, restore_job
 from app.models import CrawlRequest, ResumeRequest, ShareEmailRequest, ShareToggleRequest, User
-from app.notifications import absolute_url, remember_origin, send_share_notification
+from app.notifications import absolute_url, remember_origin, send_server_alert, send_share_notification
 from app.plans import active_page_load, resolve_concurrency
+from app.health import pending_alerts, snapshot as health_snapshot
 from app.promos import pro_upsell, wxrks_pitch
 from app.templates import templates
 from app.url_policy import parse_exclusions
@@ -36,6 +38,32 @@ _TERMINAL_STATUSES = ("completed", "failed", "cancelled", "paused")
 # Terminal *and* not resumable — these have nothing left to stream, so the
 # crawl page reads them back from the DB instead of using the live view.
 _FINISHED_STATUSES = ("completed", "failed", "cancelled")
+
+
+# Disk can fill with nothing running, so this can't hang off crawl completion.
+ALERT_CHECK_SECONDS = int(os.environ.get("ALERT_CHECK_SECONDS", "600"))
+
+
+async def _alert_loop() -> None:
+    """Checks the server's own health on a timer and mails ADMIN_EMAILS.
+
+    Every failure is swallowed: this task must outlive whatever it finds, or a
+    transient error permanently disables the thing whose job is noticing errors.
+    """
+    while True:
+        await asyncio.sleep(ALERT_CHECK_SECONDS)
+        try:
+            for alert in await pending_alerts():
+                await send_server_alert(
+                    heading=alert["heading"],
+                    intro_text=alert["intro_text"],
+                    label=alert["label"],
+                    value=alert["value"],
+                )
+                await db.mark_alert_sent(alert["kind"], datetime.now(timezone.utc).isoformat())
+                logger.warning("Server alert: %s — %s", alert["heading"], alert["value"])
+        except Exception:
+            logger.exception("The health check failed; will try again next cycle")
 
 
 @asynccontextmanager
@@ -78,7 +106,11 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Markdown orphan sweep failed")
 
+    alert_task = asyncio.create_task(_alert_loop())
+
     yield
+
+    alert_task.cancel()
     await db.close_db()
 
 
@@ -697,6 +729,20 @@ async def _job_summary(job) -> dict:
         "page_count": len(job.pages),
         "total_words": job.total_words,
     }
+
+
+@app.get("/admin/health")
+async def admin_health(request: Request, admin: User = Depends(require_admin)):
+    return templates.TemplateResponse(
+        request, "admin_health.html", {"health": await health_snapshot()}
+    )
+
+
+@app.get("/admin/health.json")
+async def admin_health_json(admin: User = Depends(require_admin)):
+    """The same numbers, for anything that polls — Coolify, an uptime checker,
+    a terminal. Behind require_admin like the page it mirrors."""
+    return JSONResponse(await health_snapshot())
 
 
 @app.get("/admin/jobs")

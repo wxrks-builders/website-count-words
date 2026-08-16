@@ -68,6 +68,11 @@ class Job:
     resume_state: dict | None = None
     estimate_result: dict | None = None
     stopped_reason: str | None = None
+    # A short machine-readable tag for why this run ended: memory, stalled,
+    # user_cancelled, failed, paused, completed. The sentence above explains it
+    # to a person; this makes it countable, which is what turns "is the server
+    # struggling" from a guess into a query.
+    stop_kind: str | None = None
     # Only set when reconstructed from a checkpoint (see restore_job) — the
     # crash happened before the specific login-blocked URLs were persisted,
     # just their count, so it's tracked separately from the live dict above.

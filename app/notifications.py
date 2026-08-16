@@ -196,3 +196,38 @@ async def send_share_notification(
         footer_note=f"You're getting this because someone shared a {surface.name} report with you.",
         surface=surface,
     )
+
+
+def admin_emails() -> list[str]:
+    """Who gets server alerts. Same list that gates the admin pages, so there is
+    one place to add someone rather than two that can disagree."""
+    raw = os.environ.get("ADMIN_EMAILS", "")
+    return [e.strip() for e in raw.split(",") if e.strip()]
+
+
+async def send_server_alert(heading: str, intro_text: str, label: str, value: str) -> None:
+    """Tells the admins something about the server, not about a crawl.
+
+    Best effort throughout: an alert that raises would take down the periodic
+    task that produces every future alert, which is the worst possible failure
+    for a thing whose job is to notice failures.
+    """
+    recipients = admin_emails()
+    if not recipients:
+        logger.info("Server alert not sent (no ADMIN_EMAILS): %s — %s", heading, value)
+        return
+    for email in recipients:
+        try:
+            await _send_email(
+                to_email=email,
+                subject=f"[{surfaces.DEFAULT.name}] {heading}",
+                heading=heading,
+                intro_text=intro_text,
+                label=label,
+                value=value,
+                cta_label="Open the health page",
+                cta_url=absolute_url("/admin/health"),
+                footer_note="You are receiving this because your address is in ADMIN_EMAILS.",
+            )
+        except Exception:
+            logger.exception("Could not send a server alert to %s", email)

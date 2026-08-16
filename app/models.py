@@ -63,6 +63,11 @@ class RunRecord(BaseModel):
     # Wall-clock seconds the crawl took. 0 means unknown — either still running,
     # or saved before this was recorded.
     duration_seconds: int = 0
+    # Why the run ended — see app/health.py. None on runs saved before this was
+    # recorded, which reads as "unknown" rather than being guessed at.
+    stop_kind: str | None = None
+    stopped_reason: str | None = None
+    error: str | None = None
     language: str | None = None
     language_auto_detected: bool = False
     resume_state: dict | None = None

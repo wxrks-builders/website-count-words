@@ -100,6 +100,29 @@ stripe trigger customer.subscription.updated               # expect 200, not 400
 Both hostnames share one account (`app/surfaces.py`), so one subscription covers
 both products. Only one Stripe price is needed.
 
+## Watching the server
+
+`/admin/health` (admin only, 404 otherwise) answers the two questions the logs
+can't: how much disk each user is holding, and whether crawls are dying because
+too many run at once. `/admin/health.json` is the same data for anything that
+polls — Coolify, an uptime checker, a terminal.
+
+The concurrency answer depends on runs recording *why* they ended. That is the
+`stop_kind` column: `memory`, `stalled`, `user_cancelled`, `failed`,
+`completed`. Runs from before it exists read as "unknown" rather than being
+guessed at, so the panel only gets useful for crawls run after this deploy.
+
+Alerts go to `ADMIN_EMAILS` and need `MAILGUN_API_KEY`; with either missing the
+page still works and nothing is sent. Three conditions, each stating the number
+that tripped it: free space below the Markdown floor, Markdown above 90% of its
+cap, and `MEMORY_KILLS_BEFORE_ALERT` crawls stopped for memory within an hour.
+That last one is the signal to either raise `MEMORY_LIMIT_MB` if the box has
+room or lower `CRAWL_PAGE_BUDGET` so fewer pages are in flight.
+
+The cooldown between repeats lives in the database, not in memory — a process
+having the problems these alerts describe is a process that restarts, and an
+in-memory cooldown would mail on every boot.
+
 ## Health check
 
 `GET /login` — public, cheap, and doesn't touch the database. `GET /` is also

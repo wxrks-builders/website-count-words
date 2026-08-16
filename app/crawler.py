@@ -690,8 +690,11 @@ async def _resolve_terminal_status(job, pause_at_words: int | None, url: str, fi
     stop."""
     if job.cancel_requested:
         job.status = "cancelled"
+        # The stall watchdog already claimed this one if it was the cause.
+        job.stop_kind = job.stop_kind or "user_cancelled"
     elif _memory_exceeded():
         job.status = "cancelled"
+        job.stop_kind = "memory"
         job.stopped_reason = (
             "This crawl was stopped automatically — it was using too much "
             "memory to continue safely on this server."
@@ -703,6 +706,7 @@ async def _resolve_terminal_status(job, pause_at_words: int | None, url: str, fi
         # skipped entirely and it's just a normal completion, exact rather
         # than estimated.
         job.status = "paused"
+        job.stop_kind = "paused"
         # Repaired before anything reads it: /resume takes resume_state straight
         # off the job, and the final save_run below persists whatever is here.
         job.resume_state = _recovered_resume_state(job)
@@ -710,6 +714,7 @@ async def _resolve_terminal_status(job, pause_at_words: int | None, url: str, fi
         await db.save_estimate_snapshot(job.id, job.source_url, job.estimate_result)
     else:
         job.status = "completed"
+        job.stop_kind = "completed"
 
 
 async def _maybe_start_next_queued() -> None:
@@ -757,6 +762,10 @@ async def _stall_watchdog(job) -> None:
                 f"This crawl stalled — no page was fetched for over "
                 f"{STALL_TIMEOUT_SECONDS // 60} minutes — and was stopped automatically."
             )
+            # Set before request_cancel(), because that sets cancel_requested
+            # and from there this is indistinguishable from someone clicking
+            # Cancel — which is exactly the confusion this tag exists to end.
+            job.stop_kind = "stalled"
             job.request_cancel()
             return
 
@@ -1126,6 +1135,7 @@ async def run_crawl(
         raise
     except Exception as exc:
         job.status = "failed"
+        job.stop_kind = "failed"
         job.error = str(exc)
     finally:
         watchdog_task.cancel()
@@ -1173,6 +1183,9 @@ async def run_crawl(
             exclusions=job.exclusions,
             crawl_concurrency=job.concurrency,
             duration_seconds=_elapsed_seconds(job),
+            stop_kind=job.stop_kind,
+            stopped_reason=job.stopped_reason,
+            error=job.error,
             language=",".join(languages) if languages else None,
             language_auto_detected=job.detected_language is not None,
             resume_state=job.resume_state,

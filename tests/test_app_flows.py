@@ -423,3 +423,47 @@ def test_the_pricing_page_is_readable_without_an_account(app_env, monkeypatch):
     res = app_env.client.get("/pricing")
     assert res.status_code == 200
     assert "Sign in to upgrade" in res.text
+
+
+# -------------------------------------------------------------------- health
+
+def test_the_health_page_is_admin_only(app_env, monkeypatch):
+    """404 rather than 403, matching require_admin — a non-admin shouldn't be
+    able to tell the page exists."""
+    monkeypatch.setenv("ADMIN_EMAILS", "nobody@x.c")
+    assert app_env.client.get("/admin/health").status_code == 404
+    assert app_env.client.get("/admin/health.json").status_code == 404
+
+
+def test_the_health_page_renders_for_an_admin(app_env, monkeypatch):
+    monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
+    res = app_env.client.get("/admin/health")
+    assert res.status_code == 200
+    for panel in ("Right now", "Disk", "Recent stops", "Disk by user"):
+        assert panel in res.text
+
+
+def test_the_health_page_survives_an_empty_database(app_env, monkeypatch):
+    monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
+    assert app_env.client.get("/admin/health").status_code == 200
+
+
+def test_health_json_reports_the_real_limits(app_env, monkeypatch):
+    from app import plans
+    from app.crawler import MAX_CONCURRENT_CRAWLS
+
+    monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
+    body = app_env.client.get("/admin/health.json").json()
+    assert body["live"]["max_concurrent_crawls"] == MAX_CONCURRENT_CRAWLS
+    assert body["live"]["page_budget"] == plans.PAGE_BUDGET
+
+
+def test_a_memory_kill_is_visible_afterwards(app_env, monkeypatch):
+    """The whole point: before stop_kind, this was indistinguishable from
+    somebody clicking Cancel."""
+    monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
+    save(app_env, status="cancelled", stop_kind="memory",
+         stopped_reason="Stopped automatically — too much memory.")
+    body = app_env.client.get("/admin/health").text
+    assert "memory" in body
+    assert "too much memory" in body

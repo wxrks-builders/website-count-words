@@ -59,6 +59,11 @@ async def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_runs_source_url ON runs(source_url);
         CREATE INDEX IF NOT EXISTS idx_runs_user_id ON runs(user_id);
 
+        CREATE TABLE IF NOT EXISTS server_alerts (
+            kind TEXT PRIMARY KEY,
+            last_sent_at TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS run_shares (
             run_id TEXT NOT NULL,
             email TEXT NOT NULL,
@@ -148,6 +153,14 @@ async def _ensure_columns() -> None:
         # will claim anything about it. Runs saved before this default to 0,
         # which reads as "unknown" rather than "instant".
         ("duration_seconds", "ALTER TABLE runs ADD COLUMN duration_seconds INTEGER NOT NULL DEFAULT 0"),
+        # Why the run ended. Until these existed, a memory kill, a stall and a
+        # user clicking Cancel all persisted as status='cancelled' and nothing
+        # else, so "are crawls dying because too many run at once" had no
+        # answer anywhere on the server. NULL on older runs means "unknown",
+        # which the health page says rather than guessing.
+        ("stop_kind", "ALTER TABLE runs ADD COLUMN stop_kind TEXT"),
+        ("stopped_reason", "ALTER TABLE runs ADD COLUMN stopped_reason TEXT"),
+        ("error", "ALTER TABLE runs ADD COLUMN error TEXT"),
     ]:
         if column not in existing:
             await conn.execute(ddl)
@@ -297,6 +310,9 @@ def _row_to_run(row: aiosqlite.Row) -> RunRecord:
         exclusions=row["exclusions"],
         crawl_concurrency=row["crawl_concurrency"],
         duration_seconds=row["duration_seconds"],
+        stop_kind=row["stop_kind"],
+        stopped_reason=row["stopped_reason"],
+        error=row["error"],
         language=row["language"],
         language_auto_detected=bool(row["language_auto_detected"]),
         resume_state=json.loads(resume_state_json) if resume_state_json else None,
@@ -381,6 +397,9 @@ async def save_run(
     exclusions: str | None = None,
     crawl_concurrency: int = 0,
     duration_seconds: int = 0,
+    stop_kind: str | None = None,
+    stopped_reason: str | None = None,
+    error: str | None = None,
     language: str | None = None,
     language_auto_detected: bool = False,
     resume_state: dict | None = None,
@@ -399,9 +418,10 @@ async def save_run(
         INSERT INTO runs
             (id, source_url, user_id, created_at, status, total_words, page_count, limit_reached,
              login_blocked_count, duplicate_count, domain_scope, exclusions, crawl_concurrency,
-             duration_seconds, language, language_auto_detected, resume_state_json, pages_json,
+             duration_seconds, stop_kind, stopped_reason, error,
+             language, language_auto_detected, resume_state_json, pages_json,
              capture_markdown, markdown_pages, markdown_bytes, markdown_state, surface)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             status=excluded.status,
             total_words=excluded.total_words,
@@ -413,6 +433,9 @@ async def save_run(
             exclusions=excluded.exclusions,
             crawl_concurrency=excluded.crawl_concurrency,
             duration_seconds=excluded.duration_seconds,
+            stop_kind=excluded.stop_kind,
+            stopped_reason=excluded.stopped_reason,
+            error=excluded.error,
             language=excluded.language,
             language_auto_detected=excluded.language_auto_detected,
             resume_state_json=excluded.resume_state_json,
@@ -428,7 +451,8 @@ async def save_run(
             # periodic checkpointing during a crawl must not keep bumping it forward.
             run_id, source_url, user_id, now, status, total_words, len(pages), int(limit_reached),
             login_blocked_count, duplicate_count, domain_scope, exclusions, crawl_concurrency,
-            duration_seconds, language, int(language_auto_detected), resume_state_json, pages_json,
+            duration_seconds, stop_kind, stopped_reason, (error or "")[:500] or None,
+            language, int(language_auto_detected), resume_state_json, pages_json,
             int(capture_markdown), markdown_pages, markdown_bytes, markdown_state, surface,
         ),
     )
@@ -654,6 +678,96 @@ async def count_all_runs(query: str = "") -> int:
     ) as cur:
         row = await cur.fetchone()
     return row["n"]
+
+
+async def disk_usage_by_user(limit: int = 25) -> list[dict]:
+    """Who is holding how much saved Markdown, largest first.
+
+    markdown_bytes is what the crawler counted as it wrote. The health page
+    shows it next to what is actually on disk rather than picking one, because
+    the two can drift — an orphaned run directory survives until the next boot
+    sweep, and a crash mid-run leaves bytes nobody counted."""
+    conn = _conn()
+    async with conn.execute(
+        """
+        SELECT u.id, u.email, u.name,
+               COALESCE(SUM(r.markdown_bytes), 0) AS bytes,
+               COUNT(r.id) AS runs,
+               SUM(CASE WHEN r.markdown_pages > 0 THEN 1 ELSE 0 END) AS runs_with_markdown
+          FROM users u LEFT JOIN runs r ON r.user_id = u.id
+      GROUP BY u.id
+      ORDER BY bytes DESC, runs DESC
+         LIMIT ?
+        """,
+        (limit,),
+    ) as cur:
+        return [dict(row) for row in await cur.fetchall()]
+
+
+async def stop_kind_counts(since_iso: str) -> dict[str, int]:
+    """How runs ended since a given time, by kind. The panel that answers
+    "are crawls dying because too many run at once"."""
+    conn = _conn()
+    async with conn.execute(
+        "SELECT COALESCE(stop_kind, 'unknown') AS kind, COUNT(*) AS n"
+        " FROM runs WHERE created_at >= ? GROUP BY kind ORDER BY n DESC",
+        (since_iso,),
+    ) as cur:
+        return {row["kind"]: row["n"] for row in await cur.fetchall()}
+
+
+async def recent_stops(limit: int = 15) -> list[dict]:
+    """The most recent runs that didn't simply finish, with their reasons."""
+    conn = _conn()
+    async with conn.execute(
+        """
+        SELECT r.id, r.source_url, r.created_at, r.status, r.stop_kind,
+               r.stopped_reason, r.error, r.duration_seconds, r.crawl_concurrency,
+               u.email AS owner_email
+          FROM runs r JOIN users u ON u.id = r.user_id
+         WHERE r.stop_kind IS NOT NULL AND r.stop_kind NOT IN ('completed', 'paused')
+      ORDER BY r.created_at DESC LIMIT ?
+        """,
+        (limit,),
+    ) as cur:
+        return [dict(row) for row in await cur.fetchall()]
+
+
+async def count_stops_since(kind: str, since_iso: str) -> int:
+    conn = _conn()
+    async with conn.execute(
+        "SELECT COUNT(*) AS n FROM runs WHERE stop_kind = ? AND created_at >= ?",
+        (kind, since_iso),
+    ) as cur:
+        return (await cur.fetchone())["n"]
+
+
+async def known_run_ids() -> set[str]:
+    """Every run id the database knows about, for spotting orphaned Markdown
+    directories between boots — the startup sweep only runs at boot."""
+    conn = _conn()
+    async with conn.execute("SELECT id FROM runs") as cur:
+        return {row["id"] for row in await cur.fetchall()}
+
+
+async def alert_last_sent(kind: str) -> str | None:
+    conn = _conn()
+    async with conn.execute("SELECT last_sent_at FROM server_alerts WHERE kind = ?", (kind,)) as cur:
+        row = await cur.fetchone()
+    return row["last_sent_at"] if row else None
+
+
+async def mark_alert_sent(kind: str, when_iso: str) -> None:
+    """Persisted rather than held in memory on purpose: an in-process cooldown
+    resets on restart, and restarts are exactly what happens when the server is
+    having the problems these alerts are about."""
+    conn = _conn()
+    await conn.execute(
+        "INSERT INTO server_alerts (kind, last_sent_at) VALUES (?, ?)"
+        " ON CONFLICT(kind) DO UPDATE SET last_sent_at = excluded.last_sent_at",
+        (kind, when_iso),
+    )
+    await conn.commit()
 
 
 async def list_all_runs(limit: int = 50, offset: int = 0, query: str = "") -> list[dict]:
