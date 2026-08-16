@@ -2,6 +2,8 @@
 {% block title %}Server Jobs — Admin{% endblock %}
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block body %}
+  {% include "_topbar.html" %}
+
   <div class="page-wrap">
     <p class="subtitle">Everything actively crawling on this server right now, across every user. <a href="/admin/runs">All runs →</a> <a href="/admin/estimates">Estimate accuracy →</a></p>
 
@@ -73,4 +75,7 @@
       });
     }
   </script>
+
+  <script src="/static/app.js"></script>
+  <script>initUserMenu();</script>
 {% endblock %}

@@ -17,11 +17,16 @@ def _globals(request: Request) -> dict:
     billing_enabled is imported lazily to keep the import graph one-way:
     app.billing already imports this module for `templates`.
     """
+    from app.auth import is_admin
     from app.billing import billing_enabled
 
     return {
         "surface": getattr(request.state, "surface", surfaces.DEFAULT),
         "billing_enabled": billing_enabled(),
+        # A predicate rather than a flag: the context processor has the request
+        # but not whichever user the route resolved, so the template applies it
+        # to the user it already has.
+        "is_admin": is_admin,
     }
 
 

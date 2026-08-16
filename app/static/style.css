@@ -92,8 +92,54 @@ header.topbar {
 }
 .user-chip .name { font-weight: 500; }
 .user-chip .sep { width: 1px; height: 14px; background: var(--border); }
-.user-chip a { color: var(--muted); }
-.user-chip a:hover { color: var(--text); }
+
+/* The chip is a button now, so it has to shed the global button styling. */
+button.user-chip {
+  height: auto;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text);
+  cursor: pointer;
+  gap: 8px;
+}
+button.user-chip:hover { background: var(--card); border-color: #B9B4A4; }
+.user-chip .chev { color: var(--muted); font-size: 10px; margin-left: 2px; }
+.user-menu.is-open .chev { transform: rotate(180deg); }
+
+.user-menu { position: relative; }
+.user-menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 232px;
+  padding: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(25, 23, 18, 0.12);
+}
+.user-menu-list a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.user-menu-list a:hover { background: var(--bg); text-decoration: none; }
+.user-menu-list a.upgrade-link { color: var(--brand); font-weight: 600; }
+.user-menu-head { padding: 8px 10px 10px; }
+.user-menu-name { font-size: 13px; font-weight: 600; }
+.user-menu-email { font-size: 12px; color: var(--muted); word-break: break-all; }
+.user-menu-sep { height: 1px; margin: 6px 4px; background: var(--border); }
+.user-menu-label {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
 
 .subtitle { font-size: 15px; color: var(--muted); margin: 0 0 14px; }
 

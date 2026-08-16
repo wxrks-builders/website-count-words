@@ -2,6 +2,8 @@
 {% block title %}All Runs — Admin{% endblock %}
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block body %}
+  {% include "_topbar.html" %}
+
   <div class="page-wrap">
     <p class="subtitle">Every crawl ever saved, across every user. <a href="/admin/jobs">Server jobs →</a> <a href="/admin/estimates">Estimate accuracy →</a></p>
 
@@ -47,6 +49,7 @@
 
   <script src="/static/app.js"></script>
   <script>
+    initUserMenu();
     formatRunDates();
   </script>
 {% endblock %}

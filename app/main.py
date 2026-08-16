@@ -714,6 +714,7 @@ async def admin_estimates(request: Request, admin: User = Depends(require_admin)
             "by_confidence": _aggregate_estimate_errors(rows, "confidence"),
             "by_cms": _aggregate_estimate_errors(rows, "detected_cms"),
             "by_concurrency": _aggregate_speed_by_concurrency(rows),
+            "user": admin,
         },
     )
 
@@ -734,7 +735,7 @@ async def _job_summary(job) -> dict:
 @app.get("/admin/health")
 async def admin_health(request: Request, admin: User = Depends(require_admin)):
     return templates.TemplateResponse(
-        request, "admin_health.html", {"health": await health_snapshot()}
+        request, "admin_health.html", {"health": await health_snapshot(), "user": admin}
     )
 
 
@@ -749,7 +750,9 @@ async def admin_health_json(admin: User = Depends(require_admin)):
 async def admin_jobs(request: Request, admin: User = Depends(require_admin)):
     jobs = [await _job_summary(job) for job in list_active_jobs()]
     queued_jobs = [await _job_summary(job) for job in list_queued_jobs()]
-    return templates.TemplateResponse(request, "admin_jobs.html", {"jobs": jobs, "queued_jobs": queued_jobs})
+    return templates.TemplateResponse(
+        request, "admin_jobs.html", {"jobs": jobs, "queued_jobs": queued_jobs, "user": admin}
+    )
 
 
 @app.get("/admin/runs")
@@ -767,6 +770,7 @@ async def admin_runs(request: Request, page: int = 1, q: str = "", admin: User =
             "total": total,
             "query": query,
             "base_url": f"/admin/runs?q={quote_plus(query)}&",
+            "user": admin,
         },
     )
 

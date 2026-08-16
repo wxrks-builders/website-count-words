@@ -4,19 +4,50 @@
     <span class="logo-sep"></span>
     <span class="logo-name">{{ surface.name }}</span>
   </a>
-  <div class="user-chip">
-    {% if user.picture %}<img src="{{ user.picture }}" alt="">{% else %}<span class="avatar">{{ user.name[0] | upper }}</span>{% endif %}
-    <span class="name">{{ user.name }}</span>
-    {% if billing_enabled %}
-      <span class="sep"></span>
-      {% if user.is_pro %}
-        <span class="plan-pill" title="Crawls run at full speed. Click to manage your subscription.">Pro</span>
-        <a href="#" data-billing-portal>Billing</a>
-      {% else %}
-        <a href="/pricing" class="upgrade-link">Upgrade</a>
+
+  {# The chip is the menu button. Everything that used to sit inline beside the
+     name now lives in the dropdown, so adding an item doesn't make the header
+     longer — which is what happened as Upgrade, Billing and the admin pages
+     arrived one at a time. #}
+  <div class="user-menu" id="user-menu">
+    <button type="button" class="user-chip" aria-haspopup="true" aria-expanded="false" aria-controls="user-menu-list">
+      {% if user.picture %}<img src="{{ user.picture }}" alt="">{% else %}<span class="avatar">{{ user.name[0] | upper }}</span>{% endif %}
+      <span class="name">{{ user.name }}</span>
+      {% if billing_enabled and user.is_pro %}<span class="plan-pill">Pro</span>{% endif %}
+      <span class="chev" aria-hidden="true">▾</span>
+    </button>
+
+    <div class="user-menu-list" id="user-menu-list" role="menu" hidden>
+      <div class="user-menu-head">
+        <div class="user-menu-name">{{ user.name }}</div>
+        <div class="user-menu-email">{{ user.email }}</div>
+      </div>
+
+      <a role="menuitem" href="/">New crawl</a>
+      <a role="menuitem" href="/runs">Your runs</a>
+
+      {% if billing_enabled %}
+        <div class="user-menu-sep"></div>
+        {% if user.is_pro %}
+          <a role="menuitem" href="#" data-billing-portal>Manage billing</a>
+        {% else %}
+          <a role="menuitem" href="/pricing" class="upgrade-link">Upgrade to Pro</a>
+        {% endif %}
       {% endif %}
-    {% endif %}
-    <span class="sep"></span>
-    <a href="/logout">Log out</a>
+
+      {# is_admin() is the same function require_admin uses, so this lists
+         exactly the pages that will actually open. #}
+      {% if is_admin(user) %}
+        <div class="user-menu-sep"></div>
+        <div class="user-menu-label">Admin</div>
+        <a role="menuitem" href="/admin/health">Server health</a>
+        <a role="menuitem" href="/admin/jobs">Running crawls</a>
+        <a role="menuitem" href="/admin/runs">All runs</a>
+        <a role="menuitem" href="/admin/estimates">Estimate accuracy</a>
+      {% endif %}
+
+      <div class="user-menu-sep"></div>
+      <a role="menuitem" href="/logout">Log out</a>
+    </div>
   </div>
 </header>

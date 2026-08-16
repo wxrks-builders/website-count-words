@@ -7,6 +7,8 @@
        style="width: {{ [pct, 100] | min }}%;"></span></div>
 {% endmacro %}
 {% block body %}
+  {% include "_topbar.html" %}
+
   <div class="page-wrap">
     <p class="subtitle">
       What this server looks like right now.
@@ -132,4 +134,7 @@
       </table>
     </div>
   </div>
+
+  <script src="/static/app.js"></script>
+  <script>initUserMenu();</script>
 {% endblock %}

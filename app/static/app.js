@@ -92,6 +92,35 @@ async function goToStripe(path, errorEl) {
   }
 }
 
+// The user chip opens a menu. Bound wherever app.js loads, because the chip is
+// on every signed-in page and the admin pages reach the rest of the app only
+// through it.
+function initUserMenu() {
+  const root = document.getElementById("user-menu");
+  if (!root) return;
+  const button = root.querySelector(".user-chip");
+  const list = document.getElementById("user-menu-list");
+
+  const setOpen = (open) => {
+    list.hidden = !open;
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+    root.classList.toggle("is-open", open);
+  };
+
+  button.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(list.hidden);
+  });
+  // Clicking anywhere else closes it — a menu that only closes via its own
+  // button is a menu people leave open by accident.
+  document.addEventListener("click", (e) => {
+    if (!root.contains(e.target)) setOpen(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") setOpen(false);
+  });
+}
+
 function initBilling() {
   const errorEl = document.getElementById("billing-error");
   const upgradeBtn = document.getElementById("upgrade-btn");

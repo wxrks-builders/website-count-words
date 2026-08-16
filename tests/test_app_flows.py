@@ -467,3 +467,54 @@ def test_a_memory_kill_is_visible_afterwards(app_env, monkeypatch):
     body = app_env.client.get("/admin/health").text
     assert "memory" in body
     assert "too much memory" in body
+
+
+# ----------------------------------------------------------------- user menu
+
+ADMIN_MENU_ITEMS = ("Server health", "Running crawls", "All runs", "Estimate accuracy")
+
+
+def test_the_menu_offers_admins_every_admin_page(app_env, monkeypatch):
+    monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
+    body = app_env.client.get("/").text
+    for item in ADMIN_MENU_ITEMS:
+        assert f">{item}<" in body
+
+
+def test_the_menu_hides_the_admin_pages_from_everyone_else(app_env, monkeypatch):
+    """The routes 404 for a non-admin anyway; the menu must not advertise that
+    they exist, which is the same reason require_admin returns 404 not 403."""
+    monkeypatch.setenv("ADMIN_EMAILS", "someone-else@x.c")
+    body = app_env.client.get("/").text
+    for item in ADMIN_MENU_ITEMS:
+        assert f">{item}<" not in body
+
+
+def test_the_menu_lists_only_pages_that_actually_open(app_env, monkeypatch):
+    """It's built from the same is_admin() require_admin uses, so a listed page
+    can never 404 — a menu that lies is worse than no menu."""
+    monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
+    assert ">Server health<" in app_env.client.get("/").text
+    for url in ("/admin/health", "/admin/jobs", "/admin/runs", "/admin/estimates"):
+        assert app_env.client.get(url).status_code == 200
+
+
+def test_every_admin_page_carries_the_menu_back_out(app_env, monkeypatch):
+    """Admin pages had no chip at all, so they were a dead end."""
+    monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
+    for url in ("/admin/health", "/admin/jobs", "/admin/runs", "/admin/estimates"):
+        assert 'id="user-menu-list"' in app_env.client.get(url).text, url
+
+
+def test_the_menu_follows_the_billing_state(app_env, monkeypatch):
+    from app import billing
+
+    assert ">Upgrade to Pro<" not in app_env.client.get("/").text, "nothing to sell yet"
+
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    assert ">Upgrade to Pro<" in app_env.client.get("/").text
+
+    app_env.current["user"] = app_env.pro
+    body = app_env.client.get("/").text
+    assert ">Manage billing<" in body
+    assert ">Upgrade to Pro<" not in body

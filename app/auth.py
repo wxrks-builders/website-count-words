@@ -71,11 +71,21 @@ async def require_user_api(request: Request) -> User:
     return user
 
 
+def is_admin(user: User | None) -> bool:
+    """Read at call time, not import time, so adding an address to ADMIN_EMAILS
+    takes effect on restart rather than needing a rebuild. Shared with the
+    templates so the menu offers exactly the pages the routes will allow —
+    a menu that lists a page you then get 404 from is worse than no menu."""
+    if user is None:
+        return False
+    admins = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
+    return user.email.lower() in admins
+
+
 def require_admin(user: User = Depends(require_user)) -> User:
     """404, not 403 — a non-admin shouldn't be able to tell this route
     exists at all, not just that they're forbidden from it."""
-    admin_emails = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
-    if user.email.lower() not in admin_emails:
+    if not is_admin(user):
         raise HTTPException(status_code=404)
     return user
 
