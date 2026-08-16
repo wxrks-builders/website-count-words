@@ -849,6 +849,9 @@ async def run_crawl(
     # CancelledError handler, which can fire while the language probe inside
     # the `async with` is still running.
     scope_filters: list[URLFilter] = list(domain_filters) + [SkipDownloadsFilter()]
+    # Bound here rather than inside the `async with` below so the finally block
+    # can still log its counters if the crawl dies before the filter is built.
+    frontier_filter: FrontierDedupeFilter | None = None
 
     browser_config = BrowserConfig(
         avoid_css=True,
@@ -1099,6 +1102,23 @@ async def run_crawl(
         job.error = str(exc)
     finally:
         watchdog_task.cancel()
+
+        # Why a crawl came back smaller than expected is otherwise unanswerable
+        # after the fact: the frontier filter's decisions leave no trace in the
+        # run, so "it found 439 pages" and "it found 439 pages because 5,000
+        # candidates were rejected" look identical. One line per crawl makes the
+        # next short report diagnosable from the logs instead of by reproducing
+        # it — which is not always possible, since a site that throttled the
+        # crawl may well throttle the investigation too.
+        if frontier_filter is not None:
+            logger.info(
+                "crawl %s finished: status=%s pages=%d duplicates=%d concurrency=%d | "
+                "frontier rejected %d (pagination=%d duplicate-canonical=%d shape-cap=%d runaway=%d)",
+                job.id, job.status, len(job.pages), job.duplicate_count, job.concurrency,
+                frontier_filter.rejected_total, frontier_filter.rejected_pagination,
+                frontier_filter.rejected_duplicate, frontier_filter.rejected_shape_cap,
+                frontier_filter.rejected_runaway,
+            )
 
         # Runs even through the CancelledError re-raise above, so a direct
         # task cancellation still leaves the job in a proper terminal state

@@ -24,6 +24,7 @@ unlimited and max_depth at 1000 there was nothing to bound it.
 
 from __future__ import annotations
 
+import collections
 import re
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -38,9 +39,25 @@ MAX_PAGINATION_PARAMS_PER_URL = 1
 
 # Generic backstop for query schemes the pagination pattern below doesn't
 # recognize: a single path may contribute at most this many distinct
-# query-strings to the frontier. On the clay.com run this rule alone would have
-# bounded the crawl with zero knowledge of how Webflow names its parameters.
-MAX_QUERY_VARIANTS_PER_PATH = 5
+# *shapes* of query — that is, distinct sets of parameter NAMES, ignoring their
+# values.
+#
+# Counting names rather than whole query strings matters, and the first version
+# of this got it wrong by counting strings. A site that identifies pages by a
+# query parameter — clay.com/jobs?ashby_jid=<id> is 71 distinct job postings,
+# app.clay.com/signup?priceId=<id> another 362 — produces one shape and many
+# values, and capping the values threw away every page past the fifth. What
+# actually explodes is *combinations of parameters*, and that shows up as
+# distinct shapes: {a_page}, {a_page,b_page}, {a_page,b_page,c_page}...
+MAX_QUERY_SHAPES_PER_PATH = 5
+
+# Runaway guard, and deliberately generous. Shape-counting above is blind to a
+# scheme that puts something unique in the *value* on every link — a session id,
+# a cache buster — which would otherwise mint new URLs forever, each one
+# fetched before the post-fetch duplicate guard could notice it's the same page.
+# Set far above any real listing (clay.com's largest is 362 signup variants) so
+# it only ever catches genuine runaway, not a site with a lot of products.
+MAX_QUERY_VALUES_PER_PATH = 500
 
 
 # Pagination parameter names, across the shapes seen in the wild:
@@ -62,6 +79,11 @@ _TRACKING_PARAMS = {
     "igshid", "twclid", "li_fat_id", "dclid",
     "mc_cid", "mc_eid", "dub_id", "_ga", "_gl", "gad_source",
     "ref", "referrer", "referer", "source", "src", "via", "su",
+    # Post-auth destinations. These decide where you land *after* the page,
+    # never what the page itself says, so app.clay.com/signup?redirect_to=<144
+    # different pages> is one page, fetched once.
+    "redirect_to", "redirect", "redirect_uri", "return_to", "returnurl",
+    "return_url", "next", "continue", "callback", "destination",
 }
 _TRACKING_PREFIXES = ("utm_", "_hs", "pk_", "mtm_", "at_")
 
@@ -107,12 +129,30 @@ def canonical_key(url: str) -> str:
     return urlunsplit(("https", host, path, urlencode(params), ""))
 
 
-def _variant_key(url: str) -> tuple[str, str]:
+def _path_key(url: str) -> tuple[str, str]:
     parts = urlsplit(url)
     host = parts.netloc.lower()
     if host.startswith("www."):
         host = host[4:]
     return host, parts.path.rstrip("/")
+
+
+def _query_shape(url: str) -> frozenset[str] | None:
+    """The set of parameter names this URL uses, ignoring their values, or None
+    when the shape shouldn't be counted at all.
+
+    None for two cases. A query-less URL has no shape to track. And a query made
+    up only of pagination parameters is already governed by
+    MAX_PAGINATION_PARAMS_PER_URL — counting it here as well would cap a single
+    paginator at a handful of pages, which is the exact opposite of that rule's
+    intent: "?page=6" onwards would vanish, and every article linked only from
+    those pages with it.
+    """
+    parts = parse_qsl(urlsplit(url).query, keep_blank_values=True)
+    names = {name for name, _ in parts if not _is_tracking_param(name)}
+    if not names or all(is_pagination_param(n) for n in names):
+        return None
+    return frozenset(names)
 
 
 class FrontierDedupeFilter(URLFilter):
@@ -136,10 +176,12 @@ class FrontierDedupeFilter(URLFilter):
     def __init__(self, seed_urls: list[str] | None = None):
         super().__init__(name="FrontierDedupeFilter")
         self._claimed_keys: set[str] = set()
-        self._variant_counts: dict[tuple[str, str], set[str]] = {}
+        self._shapes: dict[tuple[str, str], set[frozenset[str]]] = {}
+        self._value_counts: collections.Counter = collections.Counter()
         self.rejected_duplicate = 0
         self.rejected_pagination = 0
-        self.rejected_variant_cap = 0
+        self.rejected_shape_cap = 0
+        self.rejected_runaway = 0
         # A resumed crawl rebuilds its claimed keys from the URLs it already
         # visited. Without this, every canonical whose first variant was
         # crawled before the pause is unclaimed on resume, so a second variant
@@ -149,9 +191,10 @@ class FrontierDedupeFilter(URLFilter):
 
     def _claim(self, url: str) -> None:
         self._claimed_keys.add(canonical_key(url))
-        query = urlsplit(url).query
-        if query:
-            self._variant_counts.setdefault(_variant_key(url), set()).add(query)
+        shape = _query_shape(url)
+        if shape is not None:
+            self._shapes.setdefault(_path_key(url), set()).add(shape)
+            self._value_counts[_path_key(url)] += 1
 
     def apply(self, url: str) -> bool:
         if pagination_param_count(url) > MAX_PAGINATION_PARAMS_PER_URL:
@@ -165,14 +208,20 @@ class FrontierDedupeFilter(URLFilter):
             self._update_stats(False)
             return False
 
-        query = urlsplit(url).query
-        if query:
-            variants = self._variant_counts.setdefault(_variant_key(url), set())
-            if query not in variants and len(variants) >= MAX_QUERY_VARIANTS_PER_PATH:
-                self.rejected_variant_cap += 1
+        shape = _query_shape(url)
+        if shape is not None:
+            shapes = self._shapes.setdefault(_path_key(url), set())
+            if shape not in shapes and len(shapes) >= MAX_QUERY_SHAPES_PER_PATH:
+                self.rejected_shape_cap += 1
                 self._update_stats(False)
                 return False
-            variants.add(query)
+            path_key = _path_key(url)
+            if self._value_counts[path_key] >= MAX_QUERY_VALUES_PER_PATH:
+                self.rejected_runaway += 1
+                self._update_stats(False)
+                return False
+            shapes.add(shape)
+            self._value_counts[path_key] += 1
 
         self._claimed_keys.add(key)
         self._update_stats(True)
@@ -180,7 +229,8 @@ class FrontierDedupeFilter(URLFilter):
 
     @property
     def rejected_total(self) -> int:
-        return self.rejected_duplicate + self.rejected_pagination + self.rejected_variant_cap
+        return (self.rejected_duplicate + self.rejected_pagination
+                + self.rejected_shape_cap + self.rejected_runaway)
 
 
 def parse_exclusions(text: str | None) -> list[str]:

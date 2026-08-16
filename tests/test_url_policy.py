@@ -5,7 +5,8 @@ with 59,860 URLs and 253.8M words for a site of roughly 11,300 pages.
 """
 
 from app.url_policy import (
-    MAX_QUERY_VARIANTS_PER_PATH,
+    MAX_QUERY_SHAPES_PER_PATH,
+    MAX_QUERY_VALUES_PER_PATH,
     ExclusionFilter,
     FrontierDedupeFilter,
     canonical_key,
@@ -35,6 +36,13 @@ class TestCanonicalKey:
 
     def test_param_order_does_not_matter(self):
         assert canonical_key("https://clay.com/x?a=1&b=2") == canonical_key("https://clay.com/x?b=2&a=1")
+
+    def test_post_auth_destinations_are_dropped(self):
+        """?redirect_to= decides where you land after the page, never what the
+        page says — 144 signup URLs that differed only by it are one page."""
+        a = "https://app.clay.com/signup?redirect_to=https%3A%2F%2Fx.com%2Fa"
+        b = "https://app.clay.com/signup?redirect_to=https%3A%2F%2Fx.com%2Fb"
+        assert canonical_key(a) == canonical_key(b) == "https://app.clay.com/signup"
 
     def test_content_bearing_params_survive(self):
         """The rule that must not overreach: these genuinely select different
@@ -88,12 +96,41 @@ class TestFrontierDedupeFilter:
         assert f.apply("https://clay.com/about/") is False
         assert f.rejected_duplicate == 1
 
-    def test_query_variant_cap(self):
+    def test_many_values_of_one_parameter_are_all_kept(self):
+        """The regression that cost a real crawl its job listings. clay.com
+        identifies each posting as /jobs?ashby_jid=<id> — one shape, 71 values.
+        Capping the values threw away 66 real pages."""
         f = FrontierDedupeFilter()
-        for i in range(MAX_QUERY_VARIANTS_PER_PATH):
-            assert f.apply(f"https://clay.com/blog?filter={i}") is True
-        assert f.apply("https://clay.com/blog?filter=99") is False
-        assert f.rejected_variant_cap == 1
+        kept = [f.apply(f"https://www.clay.com/jobs?ashby_jid=id-{i}") for i in range(71)]
+        assert all(kept)
+        assert f.rejected_shape_cap == 0
+
+    def test_deep_pagination_of_a_single_paginator_survives(self):
+        """The same regression seen from the other side: allowing one paginator
+        through is pointless if a per-path cap then stops it at page 5, because
+        everything linked only from pages 6+ becomes unreachable."""
+        f = FrontierDedupeFilter()
+        assert all(f.apply(f"https://clay.com/glossary/x?645ae0eb_page={n}") for n in range(2, 24))
+
+    def test_combinations_of_parameters_are_still_capped(self):
+        """What the cap is actually for: distinct *shapes*, which is how a
+        combinatorial scheme shows up when values are ignored."""
+        f = FrontierDedupeFilter()
+        for i in range(MAX_QUERY_SHAPES_PER_PATH):
+            assert f.apply("https://clay.com/x?" + "&".join(f"f{j}=1" for j in range(i + 1))) is True
+        assert f.apply("https://clay.com/x?" + "&".join(f"g{j}=1" for j in range(9))) is False
+        assert f.rejected_shape_cap == 1
+
+    def test_a_runaway_value_scheme_is_eventually_stopped(self):
+        """Shape-counting is blind to a unique value per link — a session id or
+        cache buster would mint URLs forever. The guard is deliberately far
+        above any real listing, so it only catches genuine runaway."""
+        f = FrontierDedupeFilter()
+        results = [f.apply(f"https://clay.com/s?sid=random-{i}") for i in range(MAX_QUERY_VALUES_PER_PATH + 50)]
+        assert results[0] is True
+        assert results[-1] is False
+        assert f.rejected_runaway > 0
+        assert MAX_QUERY_VALUES_PER_PATH > 362, "must clear clay.com's largest real listing"
 
     def test_query_free_urls_are_never_capped(self):
         """The cap is per-path and query-only — it must never stop a site's
@@ -118,10 +155,11 @@ class TestFrontierDedupeFilter:
         f = FrontierDedupeFilter(seed_urls=["https://www.clay.com/about"])
         assert f.apply("https://clay.com/about/") is False
 
-    def test_seeded_variant_counts_carry_over(self):
-        seeds = [f"https://clay.com/blog?filter={i}" for i in range(MAX_QUERY_VARIANTS_PER_PATH)]
+    def test_seeded_shape_counts_carry_over(self):
+        seeds = ["https://clay.com/x?" + "&".join(f"f{j}=1" for j in range(i + 1))
+                 for i in range(MAX_QUERY_SHAPES_PER_PATH)]
         f = FrontierDedupeFilter(seed_urls=seeds)
-        assert f.apply("https://clay.com/blog?filter=99") is False
+        assert f.apply("https://clay.com/x?" + "&".join(f"g{j}=1" for j in range(9))) is False
 
     def test_contains_the_real_explosion(self):
         """End to end over the shape that produced 1,139 URLs for one page."""
