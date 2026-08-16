@@ -296,6 +296,22 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
 .promo-wxrks .promo-body { color: var(--text); opacity: 0.75; }
 
 .promo-pro { padding-right: 44px; }
+.promo-wxrks { padding-right: 44px; }
+/* A preview that looks identical to the real thing just moves the question to
+   "am I looking at a preview or is this live". */
+.promo-preview {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 button.promo-dismiss {
   position: absolute;
   top: 8px;

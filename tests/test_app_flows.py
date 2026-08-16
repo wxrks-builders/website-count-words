@@ -373,18 +373,18 @@ def test_a_run_with_no_exclusions_still_reports_that(app_env):
 
 # -------------------------------------------------------------------- promos
 
-def test_a_shared_report_pitches_wxrks_and_the_owners_does_not(app_env):
-    """The shared link is the only surface reaching people who aren't users,
-    and they got there because somebody sent them a word count."""
+def test_both_the_shared_report_and_the_owners_pitch_wxrks(app_env):
+    """The shared link reaches people who aren't users at all, which is the more
+    valuable half — but the owner sees it too, or the one person checking this
+    app daily never lays eyes on it."""
     save(app_env, total_words=662_000)
     run(app_env.db.set_run_public("r", True))
 
-    shared = app_env.client.get("/share/r", headers=counter_host(app_env)).text
-    assert "wxrks.com" in shared
-    assert "words to translate" in shared
-
-    owner = app_env.client.get("/crawl/r", headers=counter_host(app_env)).text
-    assert "words to translate" not in owner, "the owner is a customer, not a lead"
+    for url in ("/share/r", "/crawl/r"):
+        body = app_env.client.get(url, headers=counter_host(app_env)).text
+        assert "wxrks.com" in body, url
+        assert "words to translate" in body, url
+        assert "promo-dismiss" in body, f"{url} — an owner meets this repeatedly"
 
 
 def test_the_markdown_surface_is_not_pitched_translation(app_env):
@@ -518,3 +518,32 @@ def test_the_menu_follows_the_billing_state(app_env, monkeypatch):
     body = app_env.client.get("/").text
     assert ">Manage billing<" in body
     assert ">Upgrade to Pro<" not in body
+
+
+def test_preview_is_admin_only(app_env, monkeypatch):
+    """Force-rendering banners is a diagnostic, not something a user can turn on
+    for themselves."""
+    monkeypatch.setenv("ADMIN_EMAILS", "someone-else@x.c")
+    save(app_env, total_words=200, duration_seconds=0)
+    body = app_env.client.get("/crawl/r?preview=promos").text
+    assert "promo-preview" not in body
+    assert "On Pro it would have taken" not in body
+
+
+def test_preview_shows_an_admin_both_banners_with_stripe_off(app_env, monkeypatch):
+    """The Pro banner is otherwise unviewable until billing is switched on."""
+    monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
+    save(app_env, total_words=200, duration_seconds=0, crawl_concurrency=0)
+    body = app_env.client.get("/crawl/r?preview=promos", headers=counter_host(app_env)).text
+    assert "On Pro it would have taken" in body
+    assert "words to translate" in body
+    assert body.count("promo-preview") == 2, "both must be labelled as previews"
+
+
+def test_a_shared_report_cannot_be_previewed_into(app_env, monkeypatch):
+    """No user on that route means is_admin is False, so the parameter is inert
+    — worth pinning, because a leak there would be public."""
+    monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
+    save(app_env, total_words=200, duration_seconds=0)
+    run(app_env.db.set_run_public("r", True))
+    assert "promo-preview" not in app_env.client.get("/share/r?preview=promos").text

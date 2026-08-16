@@ -121,10 +121,30 @@ async def send_crawl_notification(
     detected_cms: str | None = None,
     confidence: str | None = None,
     surface=None,
+    duration_seconds: int = 0,
+    crawl_concurrency: int = 0,
+    is_pro: bool = False,
 ) -> None:
+    from app.billing import billing_enabled
+    from app.promos import email_promo
+
     surface = surface or surfaces.DEFAULT
     heading = _STATUS_SUBJECTS.get(status, "Crawl update")
     completed = status == "completed"
+
+    # At most one, and only when it's true of this crawl — see app/promos.py.
+    # Imported inside the function because app.promos reaches app.surfaces and
+    # app.plans, and this module is imported by the crawler at startup.
+    promo = email_promo(
+        source_url=source_url,
+        total_words=total_words,
+        status=status,
+        surface=surface,
+        duration_seconds=duration_seconds,
+        crawl_concurrency=crawl_concurrency,
+        billing_enabled=billing_enabled(),
+        is_pro=is_pro,
+    )
 
     hero_stats: list[tuple[str, str]] = []
     stats: list[tuple[str, str]] = []
@@ -161,6 +181,8 @@ async def send_crawl_notification(
         stats=stats,
         notice=notice,
         notice_tone="danger" if status == "failed" else "warn",
+        promo=promo,
+        pricing_url=absolute_url("/pricing", surface),
         cta_url=absolute_url(f"/crawl/{run_id}", surface),
         cta_label="View full report",
         footer_note=f"You're getting this because you started this crawl on {surface.name}.",

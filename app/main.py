@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import auth, billing, db, markdown_store, report, surfaces
-from app.auth import get_current_user, require_admin, require_user, require_user_api
+from app.auth import get_current_user, is_admin, require_admin, require_user, require_user_api
 from app.crawler import MAX_CONCURRENT_CRAWLS, PAUSE_AT_WORDS, estimate_result_from_snapshot, run_crawl
 from app.job_store import create_job, enqueue, get_job, list_active_jobs, list_queued_jobs, restore_job
 from app.models import CrawlRequest, ResumeRequest, ShareEmailRequest, ShareToggleRequest, User
@@ -327,7 +327,12 @@ async def resume_crawl(
 
 
 @app.get("/crawl/{run_id}")
-async def crawl_page(run_id: str, request: Request, user: User = Depends(require_user)):
+async def crawl_page(
+    run_id: str,
+    request: Request,
+    preview: str = "",
+    user: User = Depends(require_user),
+):
     job = get_job(run_id)
 
     def live_view():
@@ -358,6 +363,8 @@ async def crawl_page(run_id: str, request: Request, user: User = Depends(require
     if job is not None and job.status not in _FINISHED_STATUSES:
         return live_view()
 
+    show_preview = preview == "promos" and is_admin(user)
+
     run = await db.get_run(run_id)
     if run is None:
         # Terminal in memory but not written yet — save_run() runs moments
@@ -380,8 +387,12 @@ async def crawl_page(run_id: str, request: Request, user: User = Depends(require
             "share_recipients": share_recipients,
             # Both resolved here rather than in the template — see app/promos.py
             # for why "should this banner appear" is a tested function.
-            "pro_upsell": pro_upsell(run, user, billing.billing_enabled()),
-            "wxrks_pitch": wxrks_pitch(run, request.state.surface, "past"),
+            # ?preview=promos force-renders them for an admin, so the wording can
+            # be checked without contriving a run that satisfies every condition
+            # — and before Stripe is switched on, which is otherwise the one
+            # state in which the Pro banner can never be looked at.
+            "pro_upsell": pro_upsell(run, user, billing.billing_enabled(), preview=show_preview),
+            "wxrks_pitch": wxrks_pitch(run, request.state.surface, "past", preview=show_preview),
         },
     )
 

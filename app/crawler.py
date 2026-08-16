@@ -1213,6 +1213,11 @@ async def run_crawl(
                     detected_cms=(job.estimate_result or {}).get("detected_cms"),
                     confidence=(job.estimate_result or {}).get("confidence"),
                     surface=surfaces.for_key(job.surface),
+                    # Lets the email make the same "on Pro this would have been
+                    # ..." case the report does, from the same numbers.
+                    duration_seconds=_elapsed_seconds(job),
+                    crawl_concurrency=job.concurrency,
+                    is_pro=user.is_pro,
                 )
 
         # This job just freed a slot (or, if paused, was already outside

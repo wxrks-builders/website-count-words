@@ -103,11 +103,22 @@ class TestWxrksPitch:
         assert result["domain"] == "clay.com"
         assert result["total_words"] == 662_000
 
-    def test_not_shown_to_the_owner_of_the_report(self):
-        """The signed-in owner is a customer, not a lead — and they came to
-        count words, not to be sold to on their own page."""
-        assert wxrks_pitch(run_record(), surfaces.COUNTER, "past") is None
+    def test_also_shown_to_the_owner_of_a_finished_report(self):
+        """Withholding it from owners meant the person who opens this app every
+        day never saw it, so any change to the copy shipped unread."""
+        assert wxrks_pitch(run_record(), surfaces.COUNTER, "past") is not None
+
+    def test_not_shown_while_a_crawl_is_still_running(self):
+        """There is no final number to pitch against yet."""
         assert wxrks_pitch(run_record(), surfaces.COUNTER, "live") is None
+
+    def test_the_two_placements_are_told_apart_in_the_link(self):
+        """Same pitch, different utm_medium — which is how you find out whether
+        it's the owners or the people they share with who convert."""
+        shared = parse_qs(urlsplit(wxrks_pitch(run_record(), surfaces.COUNTER, "shared")["url"]).query)
+        owner = parse_qs(urlsplit(wxrks_pitch(run_record(), surfaces.COUNTER, "past")["url"]).query)
+        assert shared["utm_medium"] == ["shared_report"]
+        assert owner["utm_medium"] == ["report"]
 
     def test_not_shown_on_the_markdown_surface(self):
         """Someone extracting Markdown is building a retrieval pipeline, not
@@ -128,3 +139,37 @@ class TestWxrksPitch:
     def test_www_is_stripped_from_the_domain_shown(self):
         assert wxrks_pitch(run_record(source_url="https://www.example.com"),
                            surfaces.COUNTER, "shared")["domain"] == "example.com"
+
+
+class TestAdminPreview:
+    """Conditional behaviour with no way to inspect it is how a banner ships
+    unseen. Preview bypasses the gates so an admin can read the wording."""
+
+    def test_pro_renders_even_with_nothing_to_sell_and_no_duration(self):
+        result = pro_upsell(run_record(duration_seconds=0, crawl_concurrency=0),
+                            user(), billing_enabled=False, preview=True)
+        assert result is not None
+        assert result["preview"] is True
+        # Substituted, because "this crawl took less than a minute" would show
+        # nothing about how the real sentence reads.
+        assert result["took_seconds"] >= promos.PRO_UPSELL_MIN_SECONDS
+        assert result["pro_seconds"] < result["took_seconds"]
+
+    def test_pro_renders_for_a_subscriber_who_would_never_see_it(self):
+        assert pro_upsell(run_record(), user(pro=True), True, preview=True) is not None
+
+    def test_wxrks_renders_on_a_site_below_the_word_floor(self):
+        result = wxrks_pitch(run_record(total_words=3), surfaces.COUNTER, "live", preview=True)
+        assert result is not None
+        assert result["preview"] is True
+        assert result["total_words"] >= promos.WXRKS_MIN_WORDS
+
+    def test_a_preview_link_is_not_counted_as_a_real_placement(self):
+        """It would otherwise pollute whatever analytics wxrks.com keeps with
+        traffic that was somebody checking the wording."""
+        result = wxrks_pitch(run_record(), surfaces.COUNTER, "past", preview=True)
+        assert parse_qs(urlsplit(result["url"]).query)["utm_medium"] == ["preview"]
+
+    def test_without_preview_nothing_changes(self):
+        assert pro_upsell(run_record(), user(), billing_enabled=False) is None
+        assert wxrks_pitch(run_record(), surfaces.MARKDOWN, "shared") is None

@@ -141,22 +141,26 @@ function initBilling() {
   }
 }
 
-// The Pro banner only appears after a genuinely slow crawl, but a signed-in
-// user meets that surface repeatedly — so "no" has to stick.
+// Every banner is dismissible and remembers it. Driven by the data attribute
+// rather than an id per banner, so a third one needs markup and nothing else.
 function initPromoDismiss() {
-  const promo = document.getElementById("pro-upsell");
-  if (!promo) return;
-  const key = "pro-upsell-dismissed";
-  if (localStorage.getItem(key)) {
-    promo.style.display = "none";
-    return;
-  }
-  const button = promo.querySelector(".promo-dismiss");
-  if (button) {
-    button.addEventListener("click", () => {
-      localStorage.setItem(key, "1");
+  for (const promo of document.querySelectorAll("[data-promo-dismiss]")) {
+    // A preview is something an admin asked to see, so dismissing it — or
+    // having dismissed the real one earlier — must not hide it.
+    if (promo.querySelector(".promo-preview")) continue;
+
+    const key = "promo-dismissed:" + promo.dataset.promoDismiss;
+    if (localStorage.getItem(key)) {
       promo.style.display = "none";
-    });
+      continue;
+    }
+    const button = promo.querySelector(".promo-dismiss");
+    if (button) {
+      button.addEventListener("click", () => {
+        localStorage.setItem(key, "1");
+        promo.style.display = "none";
+      });
+    }
   }
 }
 
