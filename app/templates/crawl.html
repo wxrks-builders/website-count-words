@@ -34,7 +34,9 @@
       <span class="section-label">Settings applied</span>
       <span class="pill" id="domain-scope-pill"></span>
       <span class="pill" id="language-pill"></span>
-      <span class="pill" id="exclusions-pill" style="display:none;"></span>
+      {# Filled in by renderSettingsPills, which always shows it — "Excluded:
+         none" is a different statement from the pill not being there. #}
+      <span class="pill" id="exclusions-pill"></span>
     </div>
   </div>
 

@@ -348,3 +348,24 @@ def test_a_webhook_without_a_valid_signature_is_rejected(app_env, monkeypatch):
         headers={"stripe-signature": "t=1,v1=forged"},
     )
     assert res.status_code == 400
+
+
+def test_the_report_carries_the_exclusions_it_was_run_with(app_env):
+    """"Settings applied" has to be able to state what was left out. Without the
+    value reaching the page there is no way to tell, after the fact, whether a
+    missing subdomain was excluded on purpose or simply never found."""
+    save(app_env, exclusions="web-staging, /careers")
+    body = app_env.client.get("/crawl/r").text
+    assert 'exclusions: "web-staging, /careers"' in body
+    assert 'id="exclusions-pill"' in body
+    assert 'id="exclusions-pill" style="display:none;"' not in body, (
+        "the pill is always rendered — 'Excluded: none' is a different "
+        "statement from the pill being absent"
+    )
+
+
+def test_a_run_with_no_exclusions_still_reports_that(app_env):
+    save(app_env)
+    body = app_env.client.get("/crawl/r").text
+    assert "exclusions: null" in body
+    assert 'id="exclusions-pill"' in body

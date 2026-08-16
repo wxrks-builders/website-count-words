@@ -150,11 +150,17 @@ function renderSettingsPills(domainScope, languages, autoDetected, exclusions) {
   if (exclusionsPill) {
     // parseLanguageList is just a comma splitter, reused here.
     const entries = parseLanguageList(exclusions);
-    exclusionsPill.style.display = entries.length ? "" : "none";
+    // Always shown, like the language pill above it says "Languages: All"
+    // rather than disappearing. Hiding it made "nothing was excluded"
+    // indistinguishable from "the exclusions weren't recorded", which is the
+    // one question this pill exists to answer.
+    exclusionsPill.style.display = "";
     // textContent, not innerHTML: unlike the scope and language pills this is
     // free text somebody typed, and a shared report renders whatever its owner
     // entered to everyone they shared it with.
-    exclusionsPill.textContent = entries.length ? `Excluded: ${entries.join(", ")}` : "";
+    exclusionsPill.textContent = entries.length
+      ? `Excluded: ${entries.join(", ")}`
+      : "Excluded: none";
   }
   if (!languagePill) return;
   if (!languages.length) {
