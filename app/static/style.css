@@ -213,6 +213,43 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
 
 .field-error { color: var(--danger-text); font-size: 0.9rem; margin-top: 0.5rem; }
 
+/* Folded away by default: the exclusions field is for the crawl that needs it,
+   not the common one, so it shouldn't compete with the URL box for attention. */
+.crawl-advanced { margin-top: 10px; font-size: 13px; }
+.crawl-advanced > summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px 2px;
+  list-style-position: outside;
+}
+.crawl-advanced > summary:hover { color: var(--text); }
+.crawl-advanced .advanced-field {
+  display: block;
+  margin: 8px 2px 6px;
+  color: var(--muted);
+}
+input.exclusions-input {
+  width: 100%;
+  max-width: 460px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  height: 42px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  background: var(--bg-input);
+  box-sizing: border-box;
+}
+.crawl-advanced .advanced-hint { margin: 8px 2px 2px; font-size: 12px; max-width: 560px; }
+.crawl-advanced .advanced-hint code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
 .google-btn {
   display: inline-flex;
   align-items: center;
@@ -645,6 +682,7 @@ ul.issues-list .issue-reason {
   font-size: 13px;
 }
 .action-row input.language-input { width: 150px; height: 38px; }
+.action-row input.recrawl-exclusions { width: 200px; height: 38px; font-size: 13px; }
 .action-row select { height: 38px; font-size: 12px; }
 .action-row button[type="submit"] { height: 38px; padding: 0 18px; font-size: 13px; }
 

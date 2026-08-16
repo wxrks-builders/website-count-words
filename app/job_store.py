@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from app.models import PageResult
+from app.url_policy import canonical_key
 
 JOBS: dict[str, "Job"] = {}
 # FIFO job ids waiting for a free slot (see crawler.py's MAX_CONCURRENT_CRAWLS
@@ -29,6 +30,15 @@ class Job:
     last_progress_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     pages: dict[str, PageResult] = field(default_factory=dict)
     login_blocked: dict[str, PageResult] = field(default_factory=dict)
+    # Pages fetched that turned out to be a copy of one already counted (see
+    # crawler.py's post-fetch duplicate guard). Held apart from `pages` for the
+    # same reason login_blocked is: they're neither real content nor a failure,
+    # so they must not inflate the page count or the word total.
+    duplicates: dict[str, PageResult] = field(default_factory=dict)
+    # Identity of everything counted so far, for that guard: canonical keys of
+    # crawled URLs, and hashes of the text they contained.
+    counted_keys: set[str] = field(default_factory=set)
+    content_hashes: dict[str, str] = field(default_factory=dict)
     total_words: int = 0
     error: str | None = None
     limit_reached: bool = False
@@ -36,6 +46,11 @@ class Job:
     cancel_requested: bool = False
     detected_language: str | None = None
     domain_scope: str = "all"
+    # Comma-separated subdomains/folders to leave out, as typed. Lives on the
+    # job rather than only in the request payload because a *queued* job is
+    # started later by _maybe_start_next_queued(), which has no payload to read
+    # — same reason domain_scope and capture_markdown are here.
+    exclusions: str | None = None
     language_setting: str | None = None
     # BFSDeepCrawlStrategy's on_state_change snapshot — lets a paused crawl
     # (see run_crawl's pause_at_words) resume later from the same frontier.
@@ -46,6 +61,7 @@ class Job:
     # crash happened before the specific login-blocked URLs were persisted,
     # just their count, so it's tracked separately from the live dict above.
     restored_login_blocked_count: int = 0
+    restored_duplicate_count: int = 0
     # Saved page Markdown. Only counters live here — the content itself goes
     # straight to disk (app/markdown_store.py), because holding it would grow
     # RSS against the ceiling that cancels crawls.
@@ -83,6 +99,10 @@ class Job:
         if self.task is not None and not self.task.done():
             self.task.cancel()
 
+    @property
+    def duplicate_count(self) -> int:
+        return len(self.duplicates) + self.restored_duplicate_count
+
     def publish(self, event: dict) -> None:
         for queue in list(self.subscribers):
             queue.put_nowait(event)
@@ -94,10 +114,12 @@ class Job:
             "total_words": self.total_words,
             "page_count": len(self.pages),
             "login_blocked_count": len(self.login_blocked) + self.restored_login_blocked_count,
+            "duplicate_count": self.duplicate_count,
             "limit_reached": self.limit_reached,
             "error": self.error,
             "detected_language": self.detected_language,
             "domain_scope": self.domain_scope,
+            "exclusions": self.exclusions,
             "language_setting": self.language_setting,
             "estimate_result": self.estimate_result,
             "stopped_reason": self.stopped_reason,
@@ -171,9 +193,18 @@ def restore_job(run, estimate_result: dict | None = None) -> Job:
         limit_reached=run.limit_reached,
         detected_language=run.language if run.language_auto_detected else None,
         domain_scope=run.domain_scope,
+        exclusions=run.exclusions,
         language_setting=None if run.language_auto_detected else run.language,
         resume_state=run.resume_state,
         restored_login_blocked_count=run.login_blocked_count,
+        restored_duplicate_count=run.duplicate_count,
+        # Rebuilt so the duplicate guard still recognizes pages counted before
+        # the restart. Its other half — the content hashes — can't come back,
+        # since only the word counts were persisted, not the text. A resumed
+        # crawl therefore catches same-URL-identity duplicates but not
+        # same-text-under-a-new-path ones from before the restart; the frontier
+        # filter is what does the heavy lifting either way.
+        counted_keys={canonical_key(p.url) for p in run.pages},
         estimate_result=estimate_result,
         # Carried across the restart so a resumed crawl keeps capturing instead
         # of silently producing a ZIP that stops at the crash point.

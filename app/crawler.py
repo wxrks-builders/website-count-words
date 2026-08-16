@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import re
 import time
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import psutil
 from crawl4ai import (
@@ -26,6 +27,7 @@ from app import db, markdown_store, surfaces
 from app.job_store import dequeue_next, get_job, list_active_jobs
 from app.models import PageResult
 from app.notifications import send_crawl_notification
+from app.url_policy import ExclusionFilter, FrontierDedupeFilter, canonical_key, parse_exclusions
 from app.word_count import count_words
 
 logger = logging.getLogger(__name__)
@@ -235,6 +237,64 @@ def _detect_page_language(html: str | None) -> str | None:
     return code if len(code) == 2 and code in _ISO_639_1_CODES else None
 
 
+# <link rel="canonical" href="..."> in either attribute order — the site's own
+# statement of "this URL and that URL are the same page". Used by the duplicate
+# guard below, which is why it tolerates the messier real-world orderings
+# rather than assuming rel comes first.
+_CANONICAL_LINK_RE = re.compile(
+    r'<link[^>]*\brel=["\']canonical["\'][^>]*\bhref=["\']([^"\']+)["\']'
+    r'|<link[^>]*\bhref=["\']([^"\']+)["\'][^>]*\brel=["\']canonical["\']',
+    re.IGNORECASE,
+)
+
+
+def _declared_canonical(html: str | None, page_url: str) -> str | None:
+    match = _CANONICAL_LINK_RE.search(html or "")
+    if not match:
+        return None
+    href = match.group(1) or match.group(2)
+    if not href:
+        return None
+    # Resolved against the page, since a canonical is allowed to be relative.
+    return urljoin(page_url, href.strip())
+
+
+def _duplicate_of(job, result, text: str) -> str | None:
+    """Which already-counted page this one is a copy of, if any.
+
+    The frontier filter (app/url_policy.py) stops the bulk of this before a
+    fetch ever happens, but it works from URL shape alone and so can only ever
+    be a heuristic. This is the backstop that makes the *word total* right
+    regardless, using two signals the page itself provides:
+
+      - Its declared <link rel="canonical">. Verified against the real culprit:
+        /glossary/site-retargeting?page-nrpb=2&645ae0eb_page=3 declares itself
+        canonical at ...?645ae0eb_page=3, so the site is telling us outright.
+      - A hash of the exact text count_words() is about to count. Catches the
+        same content republished under a genuinely unrelated path, which no
+        URL rule could ever see.
+
+    Costs ~16 bytes plus a key per page, which is nothing against the RSS
+    ceiling that already cancels crawls.
+    """
+    canonical = _declared_canonical(getattr(result, "html", None), result.url)
+    if canonical:
+        declared_key = canonical_key(canonical)
+        if declared_key != canonical_key(result.url) and declared_key in job.counted_keys:
+            return canonical
+
+    if not text.strip():
+        # Empty pages are all "identical" to each other and would otherwise
+        # collapse into one — they're already worth 0 words, so let them be.
+        return None
+    digest = hashlib.blake2b(text.encode("utf-8", "replace"), digest_size=16).hexdigest()
+    seen_at = job.content_hashes.get(digest)
+    if seen_at is not None:
+        return seen_at
+    job.content_hashes[digest] = result.url
+    return None
+
+
 PAUSE_AT_WORDS = 50_000
 MAX_CONCURRENT_CRAWLS = 3
 _CHECKPOINT_EVERY = 20
@@ -341,7 +401,9 @@ async def _checkpoint(job, languages: list[str]) -> None:
         pages=list(job.pages.values()),
         limit_reached=False,
         login_blocked_count=len(job.login_blocked) + job.restored_login_blocked_count,
+        duplicate_count=job.duplicate_count,
         domain_scope=job.domain_scope,
+        exclusions=job.exclusions,
         language=",".join(languages) if languages else None,
         language_auto_detected=job.detected_language is not None,
         resume_state=_recovered_resume_state(job),
@@ -616,6 +678,8 @@ async def _maybe_start_next_queued() -> None:
         return
     language = job.language_setting or job.detected_language
     job.status = "starting"
+    # Exclusions aren't passed: run_crawl reads them straight off the job,
+    # which is where POST /crawl already put them — same as capture_markdown.
     job.task = asyncio.create_task(
         run_crawl(job.id, job.source_url, job.max_pages, job.domain_scope, language, pause_at_words=PAUSE_AT_WORDS)
     )
@@ -653,10 +717,17 @@ async def run_crawl(
     pause_at_words: int | None = None,
     resume_state: dict | None = None,
     capture_markdown: bool = False,
+    exclusions: str | None = None,
 ) -> None:
     job = get_job(job_id)
     if job is None:
         return
+
+    # Resolved the same way capture_markdown is just below: the caller's value
+    # wins when given (a resume can tighten the list mid-crawl), otherwise
+    # whatever the job already carries from POST /crawl or a restore.
+    if exclusions is not None:
+        job.exclusions = exclusions
 
     # Resolved once here rather than per page: a run that starts with the disk
     # already tight never begins capturing, instead of writing a handful of
@@ -707,6 +778,14 @@ async def run_crawl(
         # for that).
         domain_filters.append(DomainFilter(allowed_domains=[start_base_domain]))
 
+    # Deliberately part of domain_filters rather than a separate list: an
+    # excluded host must be rejected by _post_fetch_scope_violation too, or a
+    # same-domain link that redirects onto the staging mirror still gets
+    # counted despite having been excluded.
+    exclusion_entries = parse_exclusions(job.exclusions)
+    if exclusion_entries:
+        domain_filters.append(ExclusionFilter(exclusion_entries))
+
     def _post_fetch_scope_violation(result) -> bool:
         # crawl4ai's own domain-scope enforcement (include_external,
         # DomainFilter, TopDomainOnlyFilter) only ever checks a link's
@@ -727,6 +806,12 @@ async def run_crawl(
         return not all(f.apply(final_url) for f in domain_filters)
 
     languages = parse_languages(language)
+
+    # Built out here, before the crawler is even opened, because the error
+    # paths below hand this list to _resolve_terminal_status — including the
+    # CancelledError handler, which can fire while the language probe inside
+    # the `async with` is still running.
+    scope_filters: list[URLFilter] = list(domain_filters) + [SkipDownloadsFilter()]
 
     browser_config = BrowserConfig(
         avoid_css=True,
@@ -756,11 +841,22 @@ async def run_crawl(
 
             job.publish(job.status_payload())
 
-            filters = list(domain_filters)
-            filters.append(SkipDownloadsFilter())
+            # Two lists, not one, and the difference matters. scope_filters are
+            # all stateless — the same URL always gets the same answer — which
+            # is what lets _build_estimate_result replay them over every URL in
+            # the sitemap. frontier_filter is stateful: it answers "have I
+            # already claimed this page's identity", so replaying it over the
+            # sitemap would let sitemap URLs claim keys the real crawl then gets
+            # rejected for, quietly truncating the crawl. It goes into the
+            # FilterChain and nowhere else.
             if languages:
-                filters.append(LanguageFilter(languages))
-            filter_chain = FilterChain(filters)
+                scope_filters.append(LanguageFilter(languages))
+            frontier_filter = FrontierDedupeFilter(
+                # A resumed crawl has to re-claim what it already visited, or
+                # one duplicate per page slips through after every pause.
+                seed_urls=list((resume_state or {}).get("visited") or [])
+            )
+            filter_chain = FilterChain(scope_filters + [frontier_filter])
 
             async def _on_state_change(state: dict) -> None:
                 # Lets a paused crawl resume later from exactly this frontier
@@ -824,7 +920,7 @@ async def run_crawl(
             )
 
             async for result in await crawler.arun(url, config=config):
-                if result.url in job.pages or result.url in job.login_blocked:
+                if result.url in job.pages or result.url in job.login_blocked or result.url in job.duplicates:
                     continue
 
                 if _post_fetch_scope_violation(result):
@@ -865,9 +961,30 @@ async def run_crawl(
 
                 if result.success:
                     text = clean_markdown_for_counting(_markdown_text(result))
+
+                    original_url = _duplicate_of(job, result, text)
+                    if original_url is not None:
+                        # Same content under a second URL. Recorded, but kept
+                        # out of job.pages and job.total_words entirely — the
+                        # whole point is that it must not be counted twice —
+                        # and its Markdown isn't saved either, since the
+                        # identical file is already on disk under the original.
+                        job.duplicates[result.url] = PageResult(
+                            url=result.url,
+                            title=title,
+                            word_count=0,
+                            success=False,
+                            duplicate_of=original_url,
+                            error="Duplicate of a page already counted",
+                        )
+                        job.last_progress_at = datetime.now(timezone.utc)
+                        job.publish({"type": "duplicate", "duplicate_count": job.duplicate_count})
+                        continue
+
                     word_count = count_words(text)
                     page = PageResult(url=result.url, title=title, word_count=word_count, success=True)
                     job.total_words += word_count
+                    job.counted_keys.add(canonical_key(result.url))
                     _capture_markdown(job, result)
                     for name, weight in _detect_cms_signals(result).items():
                         job.cms_match_counts[name] = job.cms_match_counts.get(name, 0) + weight
@@ -926,14 +1043,14 @@ async def run_crawl(
                     job.task.cancel()
 
         job.limit_reached = len(job.pages) + len(job.login_blocked) >= max_pages
-        await _resolve_terminal_status(job, pause_at_words, url, filters)
+        await _resolve_terminal_status(job, pause_at_words, url, scope_filters)
     except asyncio.CancelledError:
         # Reached either via Job.request_cancel() (user clicked Cancel) or
         # the direct self-cancel above (memory/pause) — _resolve_terminal_status
         # inspects the actual job state to tell which one it was, same as the
         # normal-completion path just above.
         job.limit_reached = len(job.pages) + len(job.login_blocked) >= max_pages
-        await _resolve_terminal_status(job, pause_at_words, url, filters)
+        await _resolve_terminal_status(job, pause_at_words, url, scope_filters)
         raise
     except Exception as exc:
         job.status = "failed"
@@ -962,7 +1079,9 @@ async def run_crawl(
             pages=list(job.pages.values()),
             limit_reached=job.limit_reached,
             login_blocked_count=len(job.login_blocked),
+            duplicate_count=job.duplicate_count,
             domain_scope=job.domain_scope,
+            exclusions=job.exclusions,
             language=",".join(languages) if languages else None,
             language_auto_detected=job.detected_language is not None,
             resume_state=job.resume_state,

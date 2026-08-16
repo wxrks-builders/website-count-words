@@ -134,6 +134,11 @@ async def _ensure_columns() -> None:
         # email links back to the same brand. That email is sent from a
         # background task, which has no request to read a Host header from.
         ("surface", "ALTER TABLE runs ADD COLUMN surface TEXT NOT NULL DEFAULT 'counter'"),
+        # Pages fetched and then found to be a copy of one already counted, and
+        # the subdomains/folders this run was told to leave out — see
+        # app/url_policy.py.
+        ("duplicate_count", "ALTER TABLE runs ADD COLUMN duplicate_count INTEGER NOT NULL DEFAULT 0"),
+        ("exclusions", "ALTER TABLE runs ADD COLUMN exclusions TEXT"),
     ]:
         if column not in existing:
             await conn.execute(ddl)
@@ -207,7 +212,9 @@ def _row_to_run(row: aiosqlite.Row) -> RunRecord:
         page_count=row["page_count"],
         limit_reached=bool(row["limit_reached"]),
         login_blocked_count=row["login_blocked_count"],
+        duplicate_count=row["duplicate_count"],
         domain_scope=row["domain_scope"],
+        exclusions=row["exclusions"],
         language=row["language"],
         language_auto_detected=bool(row["language_auto_detected"]),
         resume_state=json.loads(resume_state_json) if resume_state_json else None,
@@ -287,7 +294,9 @@ async def save_run(
     pages: list[PageResult],
     limit_reached: bool,
     login_blocked_count: int = 0,
+    duplicate_count: int = 0,
     domain_scope: str = "all",
+    exclusions: str | None = None,
     language: str | None = None,
     language_auto_detected: bool = False,
     resume_state: dict | None = None,
@@ -305,16 +314,19 @@ async def save_run(
         """
         INSERT INTO runs
             (id, source_url, user_id, created_at, status, total_words, page_count, limit_reached,
-             login_blocked_count, domain_scope, language, language_auto_detected, resume_state_json, pages_json,
+             login_blocked_count, duplicate_count, domain_scope, exclusions, language, language_auto_detected,
+             resume_state_json, pages_json,
              capture_markdown, markdown_pages, markdown_bytes, markdown_state, surface)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             status=excluded.status,
             total_words=excluded.total_words,
             page_count=excluded.page_count,
             limit_reached=excluded.limit_reached,
             login_blocked_count=excluded.login_blocked_count,
+            duplicate_count=excluded.duplicate_count,
             domain_scope=excluded.domain_scope,
+            exclusions=excluded.exclusions,
             language=excluded.language,
             language_auto_detected=excluded.language_auto_detected,
             resume_state_json=excluded.resume_state_json,
@@ -329,7 +341,8 @@ async def save_run(
             # created_at is only ever set on first insert (see ON CONFLICT above) —
             # periodic checkpointing during a crawl must not keep bumping it forward.
             run_id, source_url, user_id, now, status, total_words, len(pages), int(limit_reached),
-            login_blocked_count, domain_scope, language, int(language_auto_detected), resume_state_json, pages_json,
+            login_blocked_count, duplicate_count, domain_scope, exclusions, language, int(language_auto_detected),
+            resume_state_json, pages_json,
             int(capture_markdown), markdown_pages, markdown_bytes, markdown_state, surface,
         ),
     )

@@ -20,6 +20,10 @@ class PageResult(BaseModel):
     success: bool = True
     login_required: bool = False
     blocked_by_host: bool = False
+    # The already-counted page this one turned out to be a copy of — set by
+    # crawler.py's post-fetch duplicate guard. Kept out of the page list and
+    # the word total entirely, same as a login wall.
+    duplicate_of: str | None = None
     error: str | None = None
 
 
@@ -33,7 +37,12 @@ class RunRecord(BaseModel):
     page_count: int
     limit_reached: bool
     login_blocked_count: int = 0
+    # Pages fetched but found to be a copy of one already counted — see
+    # crawler.py's post-fetch duplicate guard.
+    duplicate_count: int = 0
     domain_scope: str = "all"
+    # Comma-separated subdomains/folders left out of this crawl, as typed.
+    exclusions: str | None = None
     language: str | None = None
     language_auto_detected: bool = False
     resume_state: dict | None = None
@@ -55,9 +64,19 @@ class RunRecord(BaseModel):
 class CrawlRequest(BaseModel):
     url: str
     domain_scope: Literal["all", "subdomain_only", "top_domain_only"] = "all"
+    # Comma-separated subdomains and folders to leave out, e.g.
+    # "staging, web-staging, /careers" — see app/url_policy.py.
+    exclusions: str | None = None
     language: str | None = None
     force_recrawl: bool = False
     capture_markdown: bool = False
+
+
+class ResumeRequest(BaseModel):
+    # Offered again at the pause, because the estimate panel is the first
+    # moment anyone can see they're about to crawl 2,000 pages of a staging
+    # mirror. Omitted means "keep whatever the crawl already had".
+    exclusions: str | None = None
 
 
 class ShareEmailRequest(BaseModel):

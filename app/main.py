@@ -23,9 +23,10 @@ from app import auth, db, markdown_store, report, surfaces
 from app.auth import get_current_user, require_admin, require_user, require_user_api
 from app.crawler import MAX_CONCURRENT_CRAWLS, PAUSE_AT_WORDS, estimate_result_from_snapshot, run_crawl
 from app.job_store import create_job, enqueue, get_job, list_active_jobs, list_queued_jobs, restore_job
-from app.models import CrawlRequest, ShareEmailRequest, ShareToggleRequest, User
+from app.models import CrawlRequest, ResumeRequest, ShareEmailRequest, ShareToggleRequest, User
 from app.notifications import absolute_url, remember_origin, send_share_notification
 from app.templates import templates
+from app.url_policy import parse_exclusions
 
 logger = logging.getLogger(__name__)
 
@@ -207,7 +208,15 @@ async def start_crawl(payload: CrawlRequest, request: Request, user: User = Depe
         # Reusing a cached run is only right if it can answer what was asked.
         # Someone who ticked "save Markdown" must not be handed an older run
         # that has none — that would look like the setting silently did nothing.
-        if cached is not None and (not payload.capture_markdown or cached.markdown_pages > 0):
+        # Exclusions are matched for the same reason: handing back a run that
+        # still contains the staging mirror you just excluded would read as the
+        # field having done nothing.
+        reusable = (
+            cached is not None
+            and (not payload.capture_markdown or cached.markdown_pages > 0)
+            and parse_exclusions(cached.exclusions) == parse_exclusions(payload.exclusions)
+        )
+        if reusable:
             return JSONResponse({"cached": True, "run_id": cached.id})
 
     # Checked before create_job() below adds itself to JOBS — otherwise the
@@ -221,6 +230,7 @@ async def start_crawl(payload: CrawlRequest, request: Request, user: User = Depe
     # settings immediately, and _maybe_start_next_queued has the right
     # values to launch with later.
     job.domain_scope = payload.domain_scope
+    job.exclusions = payload.exclusions
     job.language_setting = payload.language
     # Set here rather than only passed to run_crawl below, because a queued job
     # is started later by _maybe_start_next_queued, which has no payload — the
@@ -239,13 +249,20 @@ async def start_crawl(payload: CrawlRequest, request: Request, user: User = Depe
         run_crawl(
             job.id, source_url, max_pages, payload.domain_scope, payload.language,
             pause_at_words=PAUSE_AT_WORDS, capture_markdown=payload.capture_markdown,
+            exclusions=payload.exclusions,
         )
     )
     return JSONResponse({"cached": False, "run_id": job.id})
 
 
 @app.post("/crawl/{job_id}/resume")
-async def resume_crawl(job_id: str, user: User = Depends(require_user_api)):
+async def resume_crawl(
+    job_id: str,
+    # Optional so a browser still running a cached copy of the old app.js —
+    # which posts no body at all — keeps working instead of 422ing on Proceed.
+    payload: ResumeRequest | None = None,
+    user: User = Depends(require_user_api),
+):
     job = get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -255,7 +272,14 @@ async def resume_crawl(job_id: str, user: User = Depends(require_user_api)):
     language = job.language_setting or job.detected_language
     job.estimate_result = None
     job.task = asyncio.create_task(
-        run_crawl(job.id, job.source_url, float("inf"), job.domain_scope, language, resume_state=job.resume_state)
+        run_crawl(
+            job.id, job.source_url, float("inf"), job.domain_scope, language,
+            resume_state=job.resume_state,
+            # The estimate panel is the first place anyone can see what the
+            # crawl is about to spend itself on, so exclusions can still be
+            # tightened here. None means "keep what the crawl already had".
+            exclusions=payload.exclusions if payload else None,
+        )
     )
     return JSONResponse({"status": "resuming"})
 

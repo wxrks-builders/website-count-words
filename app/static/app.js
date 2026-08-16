@@ -28,6 +28,7 @@ function initHomeForm() {
   const urlInput = document.getElementById("url");
   const domainScopeSelect = document.getElementById("domain_scope");
   const languageInput = document.getElementById("language");
+  const exclusionsInput = document.getElementById("exclusions");
 
   urlInput.addEventListener("blur", () => {
     if (!languageInput.value) {
@@ -45,13 +46,14 @@ function initHomeForm() {
     const url = urlInput.value;
     const domainScope = domainScopeSelect.value;
     const language = languageInput.value.trim() || null;
+    const exclusions = exclusionsInput.value.trim() || null;
 
     try {
       const res = await fetch("/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          url, domain_scope: domainScope, language,
+          url, domain_scope: domainScope, language, exclusions,
           capture_markdown: document.getElementById("capture-markdown").checked,
         }),
       });
@@ -99,10 +101,20 @@ function parseLanguageList(text) {
   return text.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-function renderSettingsPills(domainScope, languages, autoDetected) {
+function renderSettingsPills(domainScope, languages, autoDetected, exclusions) {
   const domainPill = document.getElementById("domain-scope-pill");
   const languagePill = document.getElementById("language-pill");
+  const exclusionsPill = document.getElementById("exclusions-pill");
   if (domainPill) domainPill.textContent = DOMAIN_SCOPE_LABELS[domainScope] || domainScope;
+  if (exclusionsPill) {
+    // parseLanguageList is just a comma splitter, reused here.
+    const entries = parseLanguageList(exclusions);
+    exclusionsPill.style.display = entries.length ? "" : "none";
+    // textContent, not innerHTML: unlike the scope and language pills this is
+    // free text somebody typed, and a shared report renders whatever its owner
+    // entered to everyone they shared it with.
+    exclusionsPill.textContent = entries.length ? `Excluded: ${entries.join(", ")}` : "";
+  }
   if (!languagePill) return;
   if (!languages.length) {
     languagePill.textContent = "Languages: All";
@@ -459,6 +471,7 @@ function initCrawlPage(opts) {
   const pageCountEl = document.getElementById("page-count");
   const pagesHeadingCountEl = document.getElementById("pages-heading-count");
   const loginBlockedEl = document.getElementById("login-blocked-count");
+  const duplicateEl = document.getElementById("duplicate-count");
   const limitNote = document.getElementById("limit-note");
   const cancelNote = document.getElementById("cancel-note");
   const pausedPastNote = document.getElementById("paused-past-note");
@@ -469,6 +482,15 @@ function initCrawlPage(opts) {
   const recrawlForm = document.getElementById("recrawl-form");
   const recrawlBtn = document.getElementById("recrawl-btn");
   const recrawlDomainScopeSelect = document.getElementById("recrawl-domain-scope");
+  const recrawlExclusionsInput = document.getElementById("recrawl-exclusions");
+  // Prefilled once, never on later status events — otherwise a re-render
+  // mid-crawl would wipe out whatever is being typed into it.
+  let recrawlExclusionsPrefilled = false;
+  const prefillRecrawlExclusions = (exclusions) => {
+    if (recrawlExclusionsPrefilled || !recrawlExclusionsInput) return;
+    recrawlExclusionsPrefilled = true;
+    if (exclusions) recrawlExclusionsInput.value = exclusions;
+  };
   const recrawlLanguageInput = document.getElementById("recrawl-language");
   const printBtn = document.getElementById("print-btn");
   const exportCsvBtn = document.getElementById("export-csv-btn");
@@ -593,13 +615,13 @@ function initCrawlPage(opts) {
     pagesHeadingCountEl.textContent = count ? `— ${count.toLocaleString("en-US")} crawled` : "";
   };
 
-  const updateSettingsPills = (domainScope, languageSetting, detectedLanguage) => {
+  const updateSettingsPills = (domainScope, languageSetting, detectedLanguage, exclusions) => {
     const languages = languageSetting
       ? parseLanguageList(languageSetting)
       : detectedLanguage
         ? [detectedLanguage]
         : [];
-    renderSettingsPills(domainScope, languages, !languageSetting && !!detectedLanguage);
+    renderSettingsPills(domainScope, languages, !languageSetting && !!detectedLanguage, exclusions);
   };
 
   const CONFIDENCE_LABELS = { high: "High confidence", medium: "Medium confidence", low: "Low confidence" };
@@ -834,6 +856,7 @@ function initCrawlPage(opts) {
         url: opts.sourceUrl,
         domain_scope: recrawlDomainScopeSelect.value,
         language: recrawlLanguageInput.value.trim() || null,
+        exclusions: recrawlExclusionsInput.value.trim() || null,
         force_recrawl: true,
         capture_markdown: document.getElementById("recrawl-markdown").checked,
       }),
@@ -983,7 +1006,9 @@ function initCrawlPage(opts) {
     totalWordsEl.textContent = opts.initialTotalWords.toLocaleString("en-US");
     updatePageCount(opts.initialPageCount);
     setStatCount(loginBlockedEl, opts.initialLoginBlockedCount || 0);
-    renderSettingsPills(opts.domainScope, parseLanguageList(opts.languageSetting), opts.languageAutoDetected);
+    setStatCount(duplicateEl, opts.initialDuplicateCount || 0);
+    renderSettingsPills(opts.domainScope, parseLanguageList(opts.languageSetting), opts.languageAutoDetected, opts.exclusions);
+    prefillRecrawlExclusions(opts.exclusions);
     if (opts.initialLimitReached) showLimitNote();
     if (opts.initialStatus === "failed") showError();
     if (opts.initialStatus === "cancelled") cancelNote.style.display = "block";
@@ -1014,8 +1039,10 @@ function initCrawlPage(opts) {
     totalWordsEl.textContent = data.total_words.toLocaleString("en-US");
     updatePageCount(data.page_count);
     setStatCount(loginBlockedEl, data.login_blocked_count);
+    setStatCount(duplicateEl, data.duplicate_count);
     showDetectedLanguage(data.detected_language);
-    updateSettingsPills(data.domain_scope, data.language_setting, data.detected_language);
+    updateSettingsPills(data.domain_scope, data.language_setting, data.detected_language, data.exclusions);
+    prefillRecrawlExclusions(data.exclusions);
     if (data.limit_reached) showLimitNote();
     if (data.status === "failed") showError(data.error);
     if (data.status === "cancelled") {
@@ -1060,7 +1087,14 @@ function initCrawlPage(opts) {
   proceedBtn.addEventListener("click", async () => {
     proceedBtn.disabled = true;
     proceedBtn.textContent = "Resuming…";
-    await fetch("/crawl/" + opts.runId + "/resume", { method: "POST" });
+    const estimateExclusionsEl = document.getElementById("estimate-exclusions");
+    await fetch("/crawl/" + opts.runId + "/resume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // null, not "", so an untouched field means "keep what the crawl already
+      // had" rather than "clear the exclusions".
+      body: JSON.stringify({ exclusions: (estimateExclusionsEl.value || "").trim() || null }),
+    });
     estimatePanel.style.display = "none";
     actionRow.style.display = "";
     cancelBtn.style.display = "";
@@ -1106,6 +1140,14 @@ function initCrawlPage(opts) {
       // Intentionally not rendered in the page list — just a running count of
       // pages that turned out to be login walls rather than real content.
       setStatCount(loginBlockedEl, data.login_blocked_count);
+    });
+
+    source.addEventListener("duplicate", (evt) => {
+      const data = JSON.parse(evt.data);
+      // Same reasoning as login_blocked: the page was fetched but is the same
+      // content as one already counted, so it belongs in neither the list nor
+      // the word total — only in this counter.
+      setStatCount(duplicateEl, data.duplicate_count);
     });
 
     source.addEventListener("status", (evt) => {
