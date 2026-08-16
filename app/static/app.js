@@ -746,34 +746,39 @@ function initCrawlPage(opts) {
     setStatCount(blockedHostEl, blocked.length);
 
     // Deliberately no quoted error text here — some of those messages are
-    // raw crawl4ai/Playwright internals (file paths, line numbers) that
-    // are meaningless to a user. Full detail per page is one click away
-    // under "View blocked/failed pages" in the same banner, where technical
-    // text is fine since it's clearly a diagnostic list, not the headline.
-    const lines = [];
+    // raw crawl4ai/Playwright internals (file paths, line numbers) that are
+    // meaningless to a user. Full detail per page is one click away inside the
+    // chip, where technical text is fine because it's clearly a diagnostic
+    // list rather than the headline.
+    //
+    // A chip has room for a count, not a sentence: "1 blocked · 2 failed", with
+    // the full wording carried by the title attribute for anyone who hovers.
+    const parts = [];
+    const spoken = [];
     if (blocked.length) {
-      lines.push(blocked.length === 1
+      parts.push(`${blocked.length.toLocaleString("en-US")} blocked`);
+      spoken.push(blocked.length === 1
         ? "1 page was blocked by this site's own bot detection."
         : `${blocked.length.toLocaleString("en-US")} pages were blocked by this site's own bot detection.`);
     }
     if (otherFailed.length) {
-      lines.push(otherFailed.length === 1
+      parts.push(`${otherFailed.length.toLocaleString("en-US")} failed`);
+      spoken.push(otherFailed.length === 1
         ? "1 page failed to load."
         : `${otherFailed.length.toLocaleString("en-US")} pages failed to load.`);
     }
 
-    if (!lines.length) {
+    if (!parts.length) {
       pageIssuesDetails.style.display = "none";
       return;
     }
-    pageIssuesNote.textContent = "";
-    lines.forEach((line, i) => {
-      if (i > 0) pageIssuesNote.appendChild(document.createElement("br"));
-      pageIssuesNote.appendChild(document.createTextNode(line));
-    });
+    pageIssuesNote.textContent = parts.join(" · ");
+    // The summary is the clickable chip, so the explanation belongs on it.
+    const summary = pageIssuesDetails.querySelector("summary");
+    if (summary) summary.title = `${spoken.join(" ")} Click to see which.`;
 
     renderIssuesList([...blocked, ...otherFailed]);
-    pageIssuesDetails.style.display = "block";
+    pageIssuesDetails.style.display = "";
   };
 
   const showDetectedLanguage = (code) => {
@@ -898,30 +903,31 @@ function initCrawlPage(opts) {
     }
   });
 
-  // Same banner as updateBlockedHostCount(), but driven by the server's counts
+  // Same chip as updateBlockedHostCount(), but driven by the server's counts
   // instead of counting a pages array the saved report no longer holds.
   const applyIssueSummary = (summary) => {
     setStatCount(blockedHostEl, summary.blocked_count);
-    const lines = [];
+    const parts = [];
+    const spoken = [];
     if (summary.blocked_count) {
-      lines.push(summary.blocked_count === 1
+      parts.push(`${summary.blocked_count.toLocaleString("en-US")} blocked`);
+      spoken.push(summary.blocked_count === 1
         ? "1 page was blocked by this site's own bot detection."
         : `${summary.blocked_count.toLocaleString("en-US")} pages were blocked by this site's own bot detection.`);
     }
     if (summary.failed_count) {
-      lines.push(summary.failed_count === 1
+      parts.push(`${summary.failed_count.toLocaleString("en-US")} failed`);
+      spoken.push(summary.failed_count === 1
         ? "1 page failed to load."
         : `${summary.failed_count.toLocaleString("en-US")} pages failed to load.`);
     }
-    if (!lines.length) {
+    if (!parts.length) {
       pageIssuesDetails.style.display = "none";
       return;
     }
-    pageIssuesNote.textContent = "";
-    lines.forEach((line, i) => {
-      if (i > 0) pageIssuesNote.appendChild(document.createElement("br"));
-      pageIssuesNote.appendChild(document.createTextNode(line));
-    });
+    pageIssuesNote.textContent = parts.join(" · ");
+    const issuesSummary = pageIssuesDetails.querySelector("summary");
+    if (issuesSummary) issuesSummary.title = `${spoken.join(" ")} Click to see which.`;
     renderIssuesList(summary.issues);
     if (summary.issues_capped) {
       const li = document.createElement("li");
@@ -929,7 +935,7 @@ function initCrawlPage(opts) {
       li.textContent = `Showing the first ${summary.issues.length.toLocaleString("en-US")} — export the CSV for the rest.`;
       pageIssuesList.appendChild(li);
     }
-    pageIssuesDetails.style.display = "block";
+    pageIssuesDetails.style.display = "";
   };
 
   const MARKDOWN_STOP_REASONS = {

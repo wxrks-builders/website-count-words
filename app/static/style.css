@@ -863,34 +863,10 @@ ul.recent-runs a.run-row:hover { background: #FCFBF8; text-decoration: none; }
   margin-bottom: 20px;
 }
 
-/* The warning and its detail list are one banner: the summary IS the alert
-   row, so the count and the way to inspect it never drift apart. */
-details.note-issues { padding: 0; }
-details.note-issues > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 20px;
-  cursor: pointer;
-  list-style: none;
-}
-details.note-issues > summary::-webkit-details-marker { display: none; }
-details.note-issues > summary:hover .note-toggle { color: var(--text); }
-.note-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.note-toggle::before {
-  content: "▶";
-  font-size: 9px;
-  transition: transform 0.15s ease;
-}
-details.note-issues[open] > summary .note-toggle::before { transform: rotate(90deg); }
-details.note-issues > ul.issues-list { margin: 0 20px 16px; }
+/* The blocked/failed count is a chip in the run bar, not a banner across the
+   page. It's one fact about the run, and it sits with the control that acts on
+   the run rather than interrupting the way to it. */
+ul.issues-list { margin: 0 20px 16px; }
 
 ul.issues-list {
   list-style: none;
@@ -921,34 +897,84 @@ ul.issues-list .issue-reason {
   color: var(--muted);
 }
 
-/* ---------- Action row ---------- */
-.action-row {
+/* ---------- Run bar ----------
+   One row: what went wrong with this run, and what to do about it. Replaces two
+   full-width fills and a set of controls sitting bare on the page background —
+   the only unhoused controls anywhere in the app. */
+.run-bar {
   display: flex;
-  gap: 8px;
-  align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 44px;
-}
-.action-row .label { font-size: 12px; color: var(--muted); }
-.action-row form {
-  display: flex;
-  gap: 8px;
   align-items: center;
-  flex-wrap: wrap;
-  background: none;
-  border: none;
-  padding: 0;
-  box-shadow: none;
-  margin: 0;
+  gap: 8px;
+  margin-bottom: 32px;
 }
-.action-row .field, .action-row input, .action-row select {
-  height: 38px;
+.run-bar-gap { flex: 1 1 0; min-width: 0; }
+
+/* A disclosure that takes the whole row once open, so the panel it reveals is
+   laid out in flow instead of floating over the report beneath it. */
+.run-disclosure { min-width: 0; }
+.run-disclosure[open] { flex: 1 1 100%; }
+
+.run-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
   font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  list-style: none;
 }
-.action-row input.language-input { width: 150px; height: 38px; }
-.action-row input.recrawl-exclusions { width: 200px; height: 38px; font-size: 13px; }
-.action-row select { height: 38px; font-size: 12px; }
-.action-row button[type="submit"] { height: 38px; padding: 0 18px; font-size: 13px; }
+.run-chip::-webkit-details-marker { display: none; }
+.run-chip::after {
+  content: "▸";
+  font-size: 10px;
+  color: var(--faint);
+  transition: transform 0.15s ease;
+}
+.run-disclosure[open] > .run-chip::after { transform: rotate(90deg); }
+.run-chip:hover { border-color: #B9B4A4; }
+
+/* Sand, because it carries the same meaning the banner did — just at the size
+   of one fact rather than the width of the page. */
+.run-chip-warn {
+  background: var(--warn-bg);
+  border-color: #EAD7AE;
+  color: var(--warn-text);
+  font-weight: 600;
+}
+.run-chip-warn::after { color: var(--warn-text); }
+.run-chip-warn:hover { border-color: var(--warn-text); }
+
+.run-chip-action { font-weight: 600; }
+
+/* The panel each disclosure opens. */
+.run-disclosure[open] > form,
+.run-disclosure[open] > ul.issues-list {
+  margin-top: 10px;
+}
+#recrawl-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+#recrawl-form .field,
+#recrawl-form input,
+#recrawl-form select { height: 34px; font-size: 13px; }
+#recrawl-form input.language-input { width: 150px; }
+#recrawl-form input.recrawl-exclusions { width: 210px; }
+#recrawl-form select { font-size: 12.5px; }
+#recrawl-form button[type="submit"] { height: 34px; padding: 0 16px; font-size: 13px; }
 
 /* ---------- Share modal ---------- */
 .modal-overlay {
