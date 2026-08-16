@@ -105,28 +105,31 @@
           {% if promo %}
           <tr>
             <td style="padding:20px 32px 0;">
-              <div style="background:#DCE8E1; border:1px solid #175E45; border-radius:10px; padding:16px 18px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+              <!-- The Ink treatment, inlined. Mint on near-black is the only
+                   direction that survives being pasted into a reply, which is
+                   what happens to this email. -->
+              <div style="background:#191712; border-radius:10px; padding:16px 18px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
                 {% if promo.kind == "pro" %}
-                  <div style="font-size:14px; font-weight:600; color:#191712; margin-bottom:4px;">
-                    This crawl took {{ promo.took_seconds | duration }}. On Pro it would have taken {{ promo.pro_seconds | duration }}.
+                  <div style="font-size:15px; font-weight:600; color:#F1EFE9; margin-bottom:5px;">
+                    This crawl took {{ promo.took_seconds | duration }}. On Pro: <span style="color:#8FD3B4; font-weight:700;">{{ promo.pro_seconds | duration }}</span>.
                   </div>
-                  <div style="font-size:13px; line-height:1.5; color:#3C382E;">
-                    Pro fetches more pages at once and starts ahead of the queue.
+                  <div style="font-size:13px; line-height:1.5; color:#A9A79E;">
+                    More pages fetched at once, and it starts ahead of the queue.
                     Everything else about the crawl is identical.
                   </div>
-                  <div style="margin-top:12px;">
-                    <a href="{{ pricing_url }}" style="color:#175E45; font-size:13px; font-weight:600; text-decoration:none;">See what that costs &rarr;</a>
+                  <div style="margin-top:14px;">
+                    <a href="{{ pricing_url }}" style="display:inline-block; background:#8FD3B4; color:#191712; border-radius:6px; padding:9px 15px; font-size:12.5px; font-weight:700; text-decoration:none;">Compare plans &rarr;</a>
                   </div>
                 {% else %}
-                  <div style="font-size:14px; font-weight:600; color:#191712; margin-bottom:4px;">
-                    {{ "{:,}".format(promo.total_words) }} words to translate.
+                  <div style="font-size:15px; font-weight:600; color:#F1EFE9; margin-bottom:5px;">
+                    <span style="color:#8FD3B4; font-weight:700;">{{ "{:,}".format(promo.total_words) }}</span> words to translate.
                   </div>
-                  <div style="font-size:13px; line-height:1.5; color:#3C382E;">
-                    wxrks connects to your site, pulls the content and translates it with
-                    the best AI models &mdash; then keeps it in sync as the site changes.
+                  <div style="font-size:13px; line-height:1.5; color:#A9A79E;">
+                    wxrks pulls the content and translates it with the best AI models,
+                    then keeps it in sync as the site changes.
                   </div>
-                  <div style="margin-top:12px;">
-                    <a href="{{ promo.url }}" style="color:#175E45; font-size:13px; font-weight:600; text-decoration:none;">See what wxrks would do with {{ promo.domain }} &rarr;</a>
+                  <div style="margin-top:14px;">
+                    <a href="{{ promo.url }}" style="display:inline-block; background:#8FD3B4; color:#191712; border-radius:6px; padding:9px 15px; font-size:12.5px; font-weight:700; text-decoration:none;">See what wxrks would do with {{ promo.domain }} &rarr;</a>
                   </div>
                 {% endif %}
               </div>

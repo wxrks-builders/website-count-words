@@ -173,3 +173,23 @@ class TestAdminPreview:
     def test_without_preview_nothing_changes(self):
         assert pro_upsell(run_record(), user(), billing_enabled=False) is None
         assert wxrks_pitch(run_record(), surfaces.MARKDOWN, "shared") is None
+
+
+class TestOnePerPage:
+    """The Ink treatment works by inverting against an otherwise light page.
+    Two inverted blocks and the contrast stops meaning anything."""
+
+    def test_only_one_survives(self):
+        pro, wxrks = promos.rank_page_promos({"took_seconds": 1}, {"total_words": 1})
+        assert pro is not None and wxrks is None
+
+    def test_wxrks_carries_the_page_when_there_is_no_pro_case(self):
+        pro, wxrks = promos.rank_page_promos(None, {"total_words": 1})
+        assert pro is None and wxrks is not None
+
+    def test_neither_stays_neither(self):
+        assert promos.rank_page_promos(None, None) == (None, None)
+
+    def test_a_preview_keeps_both_because_an_admin_asked(self):
+        pro, wxrks = promos.rank_page_promos({"a": 1}, {"b": 2}, preview=True)
+        assert pro is not None and wxrks is not None

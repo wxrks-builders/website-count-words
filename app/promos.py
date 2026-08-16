@@ -146,6 +146,26 @@ def wxrks_pitch(run: RunRecord | None, surface, mode: str, preview: bool = False
     return _wxrks_block(run.source_url, run.total_words, "shared_report" if mode == "shared" else "report")
 
 
+def rank_page_promos(pro_block: dict | None, wxrks_block: dict | None, preview: bool = False):
+    """At most one promo per page, returned as (pro, wxrks).
+
+    The Ink treatment works by inverting against a page that is otherwise
+    entirely light. Two inverted blocks on one report and the contrast stops
+    meaning anything — it just reads as two adverts. So this ranks them the same
+    way the email does: the reader is the account owner, so if the crawl was
+    slow enough to make the case, Pro is the thing they can actually buy;
+    otherwise the wxrks pitch, which is also the one that travels when they
+    share the report.
+
+    A preview keeps both, because an admin asked to look at them.
+    """
+    if preview:
+        return pro_block, wxrks_block
+    if pro_block:
+        return pro_block, None
+    return None, wxrks_block
+
+
 def email_promo(
     source_url: str,
     total_words: int,

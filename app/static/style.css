@@ -272,33 +272,79 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
 .meter-fill.meter-warm { background: var(--warn-text); }
 .meter-fill.meter-hot { background: var(--danger-text); }
 
-/* ---------- Promos ----------
-   Follows the existing note/estimate-panel card rather than shouting: these
-   only appear when they're true, so they don't need to fight for attention. */
+/* ---------- Promos: the Ink treatment ----------
+   Inverts against a page that is otherwise entirely light, which is what lets
+   something this small still get read. The mint is the brand green lifted until
+   it holds on near-black — the same hue, not a second one. Only ever one of
+   these per page (see rank_page_promos in app/promos.py); a second inverted
+   block and the contrast stops meaning anything. */
 .promo {
+  --promo-ink: #191712;
+  --promo-mint: #8FD3B4;
+  --promo-paper: #F1EFE9;
+  --promo-quiet: #A9A79E;
+
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 8px 18px;
   position: relative;
   margin: 20px 0 0;
-  padding: 20px 22px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--card);
+  padding: 15px 44px 15px 20px;
+  border-radius: 10px;
+  background: var(--promo-ink);
+  color: var(--promo-paper);
 }
-.promo-title { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
-.promo-body { margin: 0; font-size: 14px; color: var(--muted); max-width: 46rem; }
-.promo .button { flex-shrink: 0; }
+.promo-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+/* The one number the line is about. */
+.promo-title strong { color: var(--promo-mint); font-weight: 700; }
+.promo-body {
+  margin: 0;
+  flex: 1 1 15rem;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--promo-quiet);
+}
+.promo .button,
+.promo a.button {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 15px;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: var(--promo-mint);
+  color: var(--promo-ink);
+}
+.promo .button:hover, .promo a.button:hover { background: #A8DEC4; color: var(--promo-ink); }
+.promo .button.secondary {
+  background: transparent;
+  border: 1px solid var(--promo-quiet);
+  color: var(--promo-paper);
+}
+.promo .button.secondary:hover { background: transparent; border-color: var(--promo-paper); }
 
-.promo-wxrks { border-color: var(--brand); background: var(--brand-tint); }
-.promo-wxrks .promo-body { color: var(--text); opacity: 0.75; }
+button.promo-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--promo-quiet);
+  font-size: 17px;
+  line-height: 1;
+  height: auto;
+  padding: 4px 7px;
+  cursor: pointer;
+}
+button.promo-dismiss:hover { background: none; color: var(--promo-paper); }
 
-.promo-pro { padding-right: 44px; }
-.promo-wxrks { padding-right: 44px; }
-/* A preview that looks identical to the real thing just moves the question to
-   "am I looking at a preview or is this live". */
+/* Mint would read as another accent here; sand says "not the real thing". */
 .promo-preview {
   display: inline-block;
   vertical-align: middle;
@@ -307,25 +353,11 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
   border-radius: 999px;
   background: var(--warn-bg);
   color: var(--warn-text);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-button.promo-dismiss {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: none;
-  border: none;
-  color: var(--faint);
-  font-size: 18px;
-  line-height: 1;
-  height: auto;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-button.promo-dismiss:hover { background: none; color: var(--text); }
 
 /* ---------- Plan ---------- */
 .plan-pill {

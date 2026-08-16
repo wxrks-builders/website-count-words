@@ -28,7 +28,7 @@ from app.models import CrawlRequest, ResumeRequest, ShareEmailRequest, ShareTogg
 from app.notifications import absolute_url, remember_origin, send_server_alert, send_share_notification
 from app.plans import active_page_load, resolve_concurrency
 from app.health import pending_alerts, snapshot as health_snapshot
-from app.promos import pro_upsell, wxrks_pitch
+from app.promos import pro_upsell, rank_page_promos, wxrks_pitch
 from app.templates import templates
 from app.url_policy import parse_exclusions
 
@@ -373,6 +373,13 @@ async def crawl_page(
             return live_view()
         raise HTTPException(status_code=404, detail="Crawl not found")
 
+    # At most one — see rank_page_promos for why the Ink treatment can't be
+    # used twice on the same page.
+    page_pro, page_wxrks = rank_page_promos(
+        pro_upsell(run, user, billing.billing_enabled(), preview=show_preview),
+        wxrks_pitch(run, request.state.surface, "past", preview=show_preview),
+        preview=show_preview,
+    )
     return templates.TemplateResponse(
         request,
         "crawl.html",
@@ -391,8 +398,8 @@ async def crawl_page(
             # be checked without contriving a run that satisfies every condition
             # — and before Stripe is switched on, which is otherwise the one
             # state in which the Pro banner can never be looked at.
-            "pro_upsell": pro_upsell(run, user, billing.billing_enabled(), preview=show_preview),
-            "wxrks_pitch": wxrks_pitch(run, request.state.surface, "past", preview=show_preview),
+            "pro_upsell": page_pro,
+            "wxrks_pitch": page_wxrks,
         },
     )
 

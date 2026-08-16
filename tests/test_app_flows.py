@@ -527,7 +527,7 @@ def test_preview_is_admin_only(app_env, monkeypatch):
     save(app_env, total_words=200, duration_seconds=0)
     body = app_env.client.get("/crawl/r?preview=promos").text
     assert "promo-preview" not in body
-    assert "On Pro it would have taken" not in body
+    assert "promo-pro" not in body
 
 
 def test_preview_shows_an_admin_both_banners_with_stripe_off(app_env, monkeypatch):
@@ -535,8 +535,8 @@ def test_preview_shows_an_admin_both_banners_with_stripe_off(app_env, monkeypatc
     monkeypatch.setenv("ADMIN_EMAILS", app_env.owner.email)
     save(app_env, total_words=200, duration_seconds=0, crawl_concurrency=0)
     body = app_env.client.get("/crawl/r?preview=promos", headers=counter_host(app_env)).text
-    assert "On Pro it would have taken" in body
-    assert "words to translate" in body
+    assert "promo-pro" in body
+    assert "promo-wxrks" in body
     assert body.count("promo-preview") == 2, "both must be labelled as previews"
 
 

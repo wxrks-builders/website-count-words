@@ -97,7 +97,7 @@ class TestOnePromoAtMost:
         send(duration_seconds=SLOW, crawl_concurrency=4)
 
         html = sent["data"]["html"]
-        assert "On Pro it would have taken" in html
+        assert "Compare plans" in html
         assert "words to translate" not in html, "two asks in one email is the overreach"
 
     def test_otherwise_it_falls_back_to_wxrks(self, sent):
@@ -107,14 +107,14 @@ class TestOnePromoAtMost:
 
         html = sent["data"]["html"]
         assert "words to translate" in html
-        assert "On Pro it would have taken" not in html
+        assert "Compare plans" not in html
 
     def test_a_crawl_that_did_not_finish_is_sold_nothing(self, sent):
         for status in ("failed", "cancelled"):
             send(status=status, duration_seconds=SLOW, crawl_concurrency=4)
             html = sent["data"]["html"]
             assert "words to translate" not in html, status
-            assert "On Pro it would have taken" not in html, status
+            assert "Compare plans" not in html, status
 
     def test_a_small_site_is_not_called_a_translation_project(self, sent):
         send(total_words=200)
@@ -140,4 +140,4 @@ class TestOnePromoAtMost:
 
         monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
         send(duration_seconds=SLOW, crawl_concurrency=4, is_pro=True)
-        assert "On Pro it would have taken" not in sent["data"]["html"]
+        assert "Compare plans" not in sent["data"]["html"]
