@@ -26,6 +26,7 @@ from app.job_store import create_job, enqueue, get_job, list_active_jobs, list_q
 from app.models import CrawlRequest, ResumeRequest, ShareEmailRequest, ShareToggleRequest, User
 from app.notifications import absolute_url, remember_origin, send_share_notification
 from app.plans import active_page_load, resolve_concurrency
+from app.promos import pro_upsell, wxrks_pitch
 from app.templates import templates
 from app.url_policy import parse_exclusions
 
@@ -345,6 +346,10 @@ async def crawl_page(run_id: str, request: Request, user: User = Depends(require
             "initial_pages": [report.page_row(p) for p in run.pages[: report.PAGE_ROWS]],
             "user": user,
             "share_recipients": share_recipients,
+            # Both resolved here rather than in the template — see app/promos.py
+            # for why "should this banner appear" is a tested function.
+            "pro_upsell": pro_upsell(run, user, billing.billing_enabled()),
+            "wxrks_pitch": wxrks_pitch(run, request.state.surface, "past"),
         },
     )
 
@@ -367,6 +372,10 @@ async def shared_crawl_page(run_id: str, request: Request):
             "initial_pages": [report.page_row(p) for p in run.pages[: report.PAGE_ROWS]],
             "user": None,
             "share_recipients": [],
+            # Nobody is signed in here, so there is no Pro to sell — but this is
+            # the one page that reaches people who aren't users at all.
+            "pro_upsell": None,
+            "wxrks_pitch": wxrks_pitch(run, request.state.surface, "shared"),
         },
     )
 

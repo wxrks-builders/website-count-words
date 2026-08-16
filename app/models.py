@@ -60,6 +60,9 @@ class RunRecord(BaseModel):
     # Pages fetched at once — see app/plans.py. 0 on runs from before this was
     # recorded, which restore_job treats as "resolve it fresh".
     crawl_concurrency: int = 0
+    # Wall-clock seconds the crawl took. 0 means unknown — either still running,
+    # or saved before this was recorded.
+    duration_seconds: int = 0
     language: str | None = None
     language_auto_detected: bool = False
     resume_state: dict | None = None

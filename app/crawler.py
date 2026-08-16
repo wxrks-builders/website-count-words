@@ -392,6 +392,17 @@ def _recovered_resume_state(job) -> dict | None:
     return {**state, "pending": pending + recovered}
 
 
+def _elapsed_seconds(job) -> int:
+    """How long this run has been going, wall-clock. Written at every save so a
+    crawl that is interrupted still leaves a usable duration behind rather than
+    a zero — app/promos.py treats 0 as "unknown" and stays quiet."""
+    try:
+        started = datetime.fromisoformat(job.started_at)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, round((datetime.now(timezone.utc) - started).total_seconds()))
+
+
 async def _checkpoint(job, languages: list[str]) -> None:
     # Persists progress mid-crawl (not just at the end) so a server crash
     # can auto-resume from here instead of losing everything — see
@@ -410,6 +421,7 @@ async def _checkpoint(job, languages: list[str]) -> None:
         domain_scope=job.domain_scope,
         exclusions=job.exclusions,
         crawl_concurrency=job.concurrency,
+        duration_seconds=_elapsed_seconds(job),
         language=",".join(languages) if languages else None,
         language_auto_detected=job.detected_language is not None,
         resume_state=_recovered_resume_state(job),
@@ -1160,6 +1172,7 @@ async def run_crawl(
             domain_scope=job.domain_scope,
             exclusions=job.exclusions,
             crawl_concurrency=job.concurrency,
+            duration_seconds=_elapsed_seconds(job),
             language=",".join(languages) if languages else None,
             language_auto_detected=job.detected_language is not None,
             resume_state=job.resume_state,

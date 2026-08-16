@@ -143,6 +143,11 @@ async def _ensure_columns() -> None:
         # so a resumed crawl keeps the speed it was started with, rather than
         # silently dropping to whatever the resuming caller resolves.
         ("crawl_concurrency", "ALTER TABLE runs ADD COLUMN crawl_concurrency INTEGER NOT NULL DEFAULT 0"),
+        # Wall-clock seconds this run took. created_at alone can't answer "how
+        # long did this take", and app/promos.py needs the real number before it
+        # will claim anything about it. Runs saved before this default to 0,
+        # which reads as "unknown" rather than "instant".
+        ("duration_seconds", "ALTER TABLE runs ADD COLUMN duration_seconds INTEGER NOT NULL DEFAULT 0"),
     ]:
         if column not in existing:
             await conn.execute(ddl)
@@ -291,6 +296,7 @@ def _row_to_run(row: aiosqlite.Row) -> RunRecord:
         domain_scope=row["domain_scope"],
         exclusions=row["exclusions"],
         crawl_concurrency=row["crawl_concurrency"],
+        duration_seconds=row["duration_seconds"],
         language=row["language"],
         language_auto_detected=bool(row["language_auto_detected"]),
         resume_state=json.loads(resume_state_json) if resume_state_json else None,
@@ -374,6 +380,7 @@ async def save_run(
     domain_scope: str = "all",
     exclusions: str | None = None,
     crawl_concurrency: int = 0,
+    duration_seconds: int = 0,
     language: str | None = None,
     language_auto_detected: bool = False,
     resume_state: dict | None = None,
@@ -392,9 +399,9 @@ async def save_run(
         INSERT INTO runs
             (id, source_url, user_id, created_at, status, total_words, page_count, limit_reached,
              login_blocked_count, duplicate_count, domain_scope, exclusions, crawl_concurrency,
-             language, language_auto_detected, resume_state_json, pages_json,
+             duration_seconds, language, language_auto_detected, resume_state_json, pages_json,
              capture_markdown, markdown_pages, markdown_bytes, markdown_state, surface)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             status=excluded.status,
             total_words=excluded.total_words,
@@ -405,6 +412,7 @@ async def save_run(
             domain_scope=excluded.domain_scope,
             exclusions=excluded.exclusions,
             crawl_concurrency=excluded.crawl_concurrency,
+            duration_seconds=excluded.duration_seconds,
             language=excluded.language,
             language_auto_detected=excluded.language_auto_detected,
             resume_state_json=excluded.resume_state_json,
@@ -420,7 +428,7 @@ async def save_run(
             # periodic checkpointing during a crawl must not keep bumping it forward.
             run_id, source_url, user_id, now, status, total_words, len(pages), int(limit_reached),
             login_blocked_count, duplicate_count, domain_scope, exclusions, crawl_concurrency,
-            language, int(language_auto_detected), resume_state_json, pages_json,
+            duration_seconds, language, int(language_auto_detected), resume_state_json, pages_json,
             int(capture_markdown), markdown_pages, markdown_bytes, markdown_state, surface,
         ),
     )

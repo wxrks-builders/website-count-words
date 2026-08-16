@@ -369,3 +369,57 @@ def test_a_run_with_no_exclusions_still_reports_that(app_env):
     body = app_env.client.get("/crawl/r").text
     assert "exclusions: null" in body
     assert 'id="exclusions-pill"' in body
+
+
+# -------------------------------------------------------------------- promos
+
+def test_a_shared_report_pitches_wxrks_and_the_owners_does_not(app_env):
+    """The shared link is the only surface reaching people who aren't users,
+    and they got there because somebody sent them a word count."""
+    save(app_env, total_words=662_000)
+    run(app_env.db.set_run_public("r", True))
+
+    shared = app_env.client.get("/share/r", headers=counter_host(app_env)).text
+    assert "wxrks.com" in shared
+    assert "words to translate" in shared
+
+    owner = app_env.client.get("/crawl/r", headers=counter_host(app_env)).text
+    assert "words to translate" not in owner, "the owner is a customer, not a lead"
+
+
+def test_the_markdown_surface_is_not_pitched_translation(app_env):
+    save(app_env, total_words=662_000, surface="markdown")
+    run(app_env.db.set_run_public("r", True))
+    body = app_env.client.get("/share/r", headers=markdown_host(app_env)).text
+    assert "words to translate" not in body
+
+
+def test_the_pro_banner_needs_a_crawl_worth_complaining_about(app_env, monkeypatch):
+    from app import billing
+
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+
+    save(app_env, duration_seconds=90, crawl_concurrency=4)
+    assert "On Pro it would have taken" not in app_env.client.get("/crawl/r").text
+
+    save(app_env, duration_seconds=3 * 3600, crawl_concurrency=4)
+    body = app_env.client.get("/crawl/r").text
+    assert "This crawl took ~3h" in body
+    assert "/pricing" in body
+
+
+def test_no_pro_banner_when_billing_is_off(app_env):
+    save(app_env, duration_seconds=3 * 3600, crawl_concurrency=4)
+    assert "On Pro it would have taken" not in app_env.client.get("/crawl/r").text
+
+
+def test_the_pricing_page_is_readable_without_an_account(app_env, monkeypatch):
+    """It exists to convince people to sign up; requiring them to sign up first
+    made every link to it from outside the app a dead end."""
+    from app import billing
+
+    app_env.current["user"] = None
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    res = app_env.client.get("/pricing")
+    assert res.status_code == 200
+    assert "Sign in to upgrade" in res.text

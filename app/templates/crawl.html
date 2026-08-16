@@ -72,6 +72,45 @@
     </div>
   </div>
 
+  {# Both banners are server-rendered and conditional on being true — see
+     app/promos.py. Neither is permanent furniture. #}
+  {% if wxrks_pitch %}
+  <div class="report-wrap">
+    <aside class="promo promo-wxrks">
+      <div>
+        <p class="promo-title">{{ "{:,}".format(wxrks_pitch.total_words) }} words to translate.</p>
+        <p class="promo-body">
+          wxrks connects to your site, pulls the content and translates it with the
+          best AI models — then keeps it in sync as the site changes.
+        </p>
+      </div>
+      <a class="button" href="{{ wxrks_pitch.url }}" target="_blank" rel="noopener">
+        See what wxrks would do with {{ wxrks_pitch.domain }} →
+      </a>
+    </aside>
+  </div>
+  {% endif %}
+
+  {% if pro_upsell %}
+  <div class="report-wrap">
+    <aside class="promo promo-pro" id="pro-upsell" data-run="{{ run_id }}">
+      <div>
+        <p class="promo-title">
+          {# The duration filter already prefixes "~", so no "about" here. #}
+          This crawl took {{ pro_upsell.took_seconds | duration }}.
+          On Pro it would have taken {{ pro_upsell.pro_seconds | duration }}.
+        </p>
+        <p class="promo-body">
+          Pro fetches more pages at once and starts ahead of the queue. Everything
+          else about the crawl is identical.
+        </p>
+      </div>
+      <a class="button secondary" href="/pricing">See what that costs →</a>
+      <button type="button" class="promo-dismiss" title="Don't show this again">×</button>
+    </aside>
+  </div>
+  {% endif %}
+
   <div class="report-wrap report-body">
     <p class="note" id="limit-note" style="display:none;"></p>
     <p class="note" id="cancel-note" style="display:none;">This crawl was cancelled — showing partial results.</p>
@@ -270,6 +309,7 @@
   <script src="/static/app.js"></script>
   <script>
     initBilling();
+    initPromoDismiss();
     initCrawlPage({
       billingEnabled: {{ billing_enabled | tojson }},
       isPro: {{ (user.is_pro if user else False) | tojson }},

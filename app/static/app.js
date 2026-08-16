@@ -112,6 +112,25 @@ function initBilling() {
   }
 }
 
+// The Pro banner only appears after a genuinely slow crawl, but a signed-in
+// user meets that surface repeatedly — so "no" has to stick.
+function initPromoDismiss() {
+  const promo = document.getElementById("pro-upsell");
+  if (!promo) return;
+  const key = "pro-upsell-dismissed";
+  if (localStorage.getItem(key)) {
+    promo.style.display = "none";
+    return;
+  }
+  const button = promo.querySelector(".promo-dismiss");
+  if (button) {
+    button.addEventListener("click", () => {
+      localStorage.setItem(key, "1");
+      promo.style.display = "none";
+    });
+  }
+}
+
 function badgeClass(status) {
   if (status === "completed") return "status-badge status-completed";
   if (status === "failed") return "status-badge status-failed";

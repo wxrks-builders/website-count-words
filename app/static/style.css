@@ -213,6 +213,45 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
 
 .field-error { color: var(--danger-text); font-size: 0.9rem; margin-top: 0.5rem; }
 
+/* ---------- Promos ----------
+   Follows the existing note/estimate-panel card rather than shouting: these
+   only appear when they're true, so they don't need to fight for attention. */
+.promo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+  margin: 20px 0 0;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+.promo-title { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.promo-body { margin: 0; font-size: 14px; color: var(--muted); max-width: 46rem; }
+.promo .button { flex-shrink: 0; }
+
+.promo-wxrks { border-color: var(--brand); background: var(--brand-tint); }
+.promo-wxrks .promo-body { color: var(--text); opacity: 0.75; }
+
+.promo-pro { padding-right: 44px; }
+button.promo-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--faint);
+  font-size: 18px;
+  line-height: 1;
+  height: auto;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+button.promo-dismiss:hover { background: none; color: var(--text); }
+
 /* ---------- Plan ---------- */
 .plan-pill {
   background: var(--brand);

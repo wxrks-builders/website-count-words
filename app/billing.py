@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from app import db, plans, surfaces
-from app.auth import require_user, require_user_api
+from app.auth import get_current_user, require_user_api
 from app.models import User
 from app.templates import templates
 
@@ -84,7 +84,10 @@ async def _ensure_customer(user: User, request: Request) -> str:
 
 
 @router.get("/pricing")
-async def pricing_page(request: Request, user: User = Depends(require_user)):
+async def pricing_page(request: Request, user: User | None = Depends(get_current_user)):
+    """Public on purpose. Behind require_user this bounced anonymous visitors to
+    /login, so every link to it from outside the app was a dead end — backwards
+    for the one page whose job is to convince someone to sign up."""
     _require_billing()
     return templates.TemplateResponse(
         request,

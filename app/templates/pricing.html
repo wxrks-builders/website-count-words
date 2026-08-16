@@ -2,7 +2,20 @@
 {% block title %}Pricing — {{ surface.name }}{% endblock %}
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block body %}
-  {% include "_topbar.html" %}
+  {# The topbar assumes a signed-in user; this page is public, so signed-out
+     visitors get the plain header the landing page uses. #}
+  {% if user %}
+    {% include "_topbar.html" %}
+  {% else %}
+    <header class="topbar">
+      <a class="logo" href="/">
+        <img class="logo-img" src="/static/brand/logo.svg" alt="wxrks" width="123" height="28">
+        <span class="logo-sep"></span>
+        <span class="logo-name">{{ surface.name }}</span>
+      </a>
+      <a class="button secondary" href="/login">Sign in</a>
+    </header>
+  {% endif %}
 
   <div class="page-wrap">
     <h1 class="pricing-title">The only thing that changes is how long you wait.</h1>
@@ -24,7 +37,7 @@
           <li>CSV export, Markdown ZIP, shareable reports</li>
           <li>Waits its turn when the server is busy</li>
         </ul>
-        {% if not user.is_pro %}<p class="muted plan-current">Your current plan</p>{% endif %}
+        {% if user and not user.is_pro %}<p class="muted plan-current">Your current plan</p>{% endif %}
       </div>
 
       <div class="plan-card plan-card-pro">
@@ -36,11 +49,15 @@
           <li>Everything in Free</li>
           <li>Cancel anytime, from your billing page</li>
         </ul>
-        {% if user.is_pro %}
+        {% if user and user.is_pro %}
           <p class="muted plan-current">Your current plan{% if user.plan_renews_at %} · renews <span class="run-date-iso" data-iso="{{ user.plan_renews_at }}"></span>{% endif %}</p>
           <button type="button" class="secondary" data-billing-portal>Manage subscription</button>
-        {% else %}
+        {% elif user %}
           <button type="button" id="upgrade-btn">Upgrade to Pro</button>
+        {% else %}
+          {# Checkout needs an account to attach the subscription to, so send
+             them through sign-in rather than to a button that 401s. #}
+          <a class="button" href="/login">Sign in to upgrade</a>
         {% endif %}
         <p class="field-error" id="billing-error" style="display:none;"></p>
       </div>
