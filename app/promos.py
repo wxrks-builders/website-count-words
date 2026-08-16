@@ -166,6 +166,25 @@ def rank_page_promos(pro_block: dict | None, wxrks_block: dict | None, preview: 
     return None, wxrks_block
 
 
+def home_pitch(recent_runs, surface) -> dict | None:
+    """The wxrks pitch on the home page, drawn from the most recent crawl big
+    enough to be a translation project, or None.
+
+    Gated on the surface being viewed rather than the one the run came from:
+    somebody on the Word Counter home page is in the counting-and-quoting
+    frame of mind whichever door that particular run came through.
+    """
+    if surface is None or surface.key != surfaces.COUNTER.key:
+        return None
+    for run in recent_runs or []:
+        if run.get("status") != "completed":
+            continue
+        if (run.get("total_words") or 0) < WXRKS_MIN_WORDS:
+            continue
+        return _wxrks_block(run["source_url"], run["total_words"], "home")
+    return None
+
+
 def email_promo(
     source_url: str,
     total_words: int,

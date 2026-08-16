@@ -54,12 +54,33 @@
         <p class="muted">No crawls yet — try one above.</p>
       {% endif %}
     </div>
+
+    {# After their own runs, not before: this page belongs to the person using
+       it. Shares the dismissal key with the report banner, so turning it off
+       once turns it off everywhere. #}
+    {% if wxrks_pitch %}
+    <aside class="promo promo-wxrks" data-promo-dismiss="wxrks-pitch" style="margin-top:36px;">
+      <p class="promo-title">
+        Your last crawl of {{ wxrks_pitch.domain }} found
+        <strong>{{ "{:,}".format(wxrks_pitch.total_words) }}</strong> words.
+      </p>
+      <p class="promo-body">
+        wxrks pulls the content and translates it with the best AI models, then keeps
+        it in sync as the site changes.
+      </p>
+      <a class="button" href="{{ wxrks_pitch.url }}" target="_blank" rel="noopener">
+        What that costs →
+      </a>
+      <button type="button" class="promo-dismiss" title="Don't show this again">×</button>
+    </aside>
+    {% endif %}
   </div>
 
   <script src="/static/app.js"></script>
   <script>
     initUserMenu();
     initBilling();
+    initPromoDismiss();
     initHomeForm();
     formatRunDates();
   </script>

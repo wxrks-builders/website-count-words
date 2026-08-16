@@ -547,3 +547,16 @@ def test_a_shared_report_cannot_be_previewed_into(app_env, monkeypatch):
     save(app_env, total_words=200, duration_seconds=0)
     run(app_env.db.set_run_public("r", True))
     assert "promo-preview" not in app_env.client.get("/share/r?preview=promos").text
+
+
+def test_the_home_page_pitches_the_last_crawl_worth_translating(app_env):
+    save(app_env, total_words=662_000)
+    body = app_env.client.get("/", headers=counter_host(app_env)).text
+    assert "wxrks.com" in body
+    assert "Your last crawl of" in body
+    assert "promo-dismiss" in body
+
+
+def test_the_home_page_says_nothing_before_a_first_crawl(app_env):
+    body = app_env.client.get("/", headers=counter_host(app_env)).text
+    assert "wxrks.com" not in body

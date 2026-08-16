@@ -193,3 +193,26 @@ class TestOnePerPage:
     def test_a_preview_keeps_both_because_an_admin_asked(self):
         pro, wxrks = promos.rank_page_promos({"a": 1}, {"b": 2}, preview=True)
         assert pro is not None and wxrks is not None
+
+
+class TestHomePitch:
+    def test_drawn_from_the_most_recent_crawl_worth_pitching(self):
+        runs = [
+            {"status": "crawling", "total_words": 999_999, "source_url": "https://running.com"},
+            {"status": "completed", "total_words": 200, "source_url": "https://tiny.com"},
+            {"status": "completed", "total_words": 662_431, "source_url": "https://www.clay.com"},
+        ]
+        result = promos.home_pitch(runs, surfaces.COUNTER)
+        assert result["domain"] == "clay.com", "skips the unfinished and the too-small"
+
+    def test_nothing_to_say_before_the_first_crawl(self):
+        assert promos.home_pitch([], surfaces.COUNTER) is None
+
+    def test_not_on_the_markdown_home_page(self):
+        runs = [{"status": "completed", "total_words": 662_431, "source_url": "https://www.clay.com"}]
+        assert promos.home_pitch(runs, surfaces.MARKDOWN) is None
+
+    def test_the_link_says_it_came_from_the_home_page(self):
+        runs = [{"status": "completed", "total_words": 662_431, "source_url": "https://www.clay.com"}]
+        url = promos.home_pitch(runs, surfaces.COUNTER)["url"]
+        assert parse_qs(urlsplit(url).query)["utm_medium"] == ["home"]

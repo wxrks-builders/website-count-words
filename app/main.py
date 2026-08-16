@@ -28,7 +28,7 @@ from app.models import CrawlRequest, ResumeRequest, ShareEmailRequest, ShareTogg
 from app.notifications import absolute_url, remember_origin, send_server_alert, send_share_notification
 from app.plans import active_page_load, resolve_concurrency
 from app.health import pending_alerts, snapshot as health_snapshot
-from app.promos import pro_upsell, rank_page_promos, wxrks_pitch
+from app.promos import home_pitch, pro_upsell, rank_page_promos, wxrks_pitch
 from app.templates import templates
 from app.url_policy import parse_exclusions
 
@@ -197,6 +197,10 @@ async def index(request: Request, user: User | None = Depends(get_current_user))
         {
             "user": user,
             "recent_runs": recent_runs,
+            # Drawn from their most recent crawl big enough to be a translation
+            # project — see app/promos.py. Nothing to say if they haven't run
+            # one yet, which is the common case on a first visit.
+            "wxrks_pitch": home_pitch(recent_runs, request.state.surface),
             "total_runs": await db.count_user_runs(user.id),
         },
     )
