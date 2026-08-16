@@ -242,6 +242,19 @@ def parse_exclusions(text: str | None) -> list[str]:
     return [part.strip().lower() for part in text.split(",") if part.strip()]
 
 
+def exclusion_kind(entry: str) -> str:
+    """"folder" or "subdomain" for one entry, by the same leading-"/" rule
+    ExclusionFilter applies. Exposed so the UI labels an entry exactly the way
+    the crawler will treat it, rather than describing the rule in prose next to
+    a box and hoping the two stay in step."""
+    return "folder" if entry.strip().startswith("/") else "subdomain"
+
+
+def describe_exclusions(text: str | None) -> list[tuple[str, str]]:
+    """[(entry, kind), ...] for display."""
+    return [(e, exclusion_kind(e)) for e in parse_exclusions(text)]
+
+
 class ExclusionFilter(URLFilter):
     """Drops subdomains and folders the person running the crawl asked to leave
     out — the escape hatch for "whole domain, but not the staging mirror".

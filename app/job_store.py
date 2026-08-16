@@ -28,6 +28,12 @@ class Job:
     # that's gone completely silent (a hung fetch/browser context, not just a
     # slow one) and auto-cancel it instead of leaving it "crawling" forever.
     last_progress_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    # When fetching actually began, as opposed to started_at, which is stamped
+    # when the job is created. Everything between the two — launching Chromium,
+    # crawl4ai's setup, the <html lang> probe (a whole extra page fetch) — is a
+    # one-time cost, and the estimate has to keep it out of the per-page rate.
+    # See _build_estimate_result for what including it did to the projection.
+    crawling_since: datetime | None = None
     pages: dict[str, PageResult] = field(default_factory=dict)
     login_blocked: dict[str, PageResult] = field(default_factory=dict)
     # Pages fetched that turned out to be a copy of one already counted (see

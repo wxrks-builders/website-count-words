@@ -155,9 +155,13 @@
          visible — which is when you'd notice a staging mirror in the total. #}
       <details class="crawl-advanced">
         <summary>Exclude subdomains or folders before continuing</summary>
-        <input type="text" id="estimate-exclusions" class="exclusions-input" placeholder="staging, web-staging, /careers">
+        <div class="tag-input" id="estimate-exclusions">
+          <span data-tag-list></span>
+          <input type="text" placeholder="staging, web-staging, /careers">
+        </div>
         <p class="muted advanced-hint">
-          Comma-separated. A leading <code>/</code> excludes a folder, anything else a subdomain.
+          Press Enter or comma to add one. A leading <code>/</code> excludes a folder,
+          anything else a subdomain — each entry is labelled with how it will be treated.
           Applies to the rest of this crawl; pages already counted stay counted.
         </p>
       </details>

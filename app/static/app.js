@@ -28,7 +28,7 @@ function initHomeForm() {
   const urlInput = document.getElementById("url");
   const domainScopeSelect = document.getElementById("domain_scope");
   const languageInput = document.getElementById("language");
-  const exclusionsInput = document.getElementById("exclusions");
+  const exclusionsTags = initTagInput(document.getElementById("exclusions"), "");
 
   urlInput.addEventListener("blur", () => {
     if (!languageInput.value) {
@@ -46,7 +46,7 @@ function initHomeForm() {
     const url = urlInput.value;
     const domainScope = domainScopeSelect.value;
     const language = languageInput.value.trim() || null;
-    const exclusions = exclusionsInput.value.trim() || null;
+    const exclusions = exclusionsTags.value() || null;
 
     try {
       const res = await fetch("/crawl", {
@@ -142,6 +142,76 @@ function parseLanguageList(text) {
   return text.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+// "folder" or "subdomain", by the same leading-"/" rule the crawler applies —
+// mirrors exclusion_kind() in app/url_policy.py.
+function exclusionKind(entry) {
+  return entry.trim().startsWith("/") ? "folder" : "subdomain";
+}
+
+function describeExclusions(text) {
+  return parseLanguageList(text).map((e) => `${e} (${exclusionKind(e)})`);
+}
+
+// A comma-separated box gives no feedback until the crawl is already running:
+// you can't tell whether "web-staging" registered as one entry, or whether a
+// stray comma made two. Each entry becomes a chip the moment it's committed,
+// labelled with how it will actually be treated.
+function initTagInput(root, initialValue) {
+  if (!root) return { value: () => "" };
+  const list = root.querySelector("[data-tag-list]");
+  const input = root.querySelector("input");
+  let tags = parseLanguageList(initialValue);
+
+  const render = () => {
+    list.textContent = "";
+    tags.forEach((tag, i) => {
+      const chip = document.createElement("span");
+      chip.className = "tag";
+      // textContent throughout: these are free text somebody typed, and a
+      // shared report shows them to whoever the link was sent to.
+      chip.appendChild(document.createTextNode(tag));
+      const kind = document.createElement("em");
+      kind.textContent = exclusionKind(tag);
+      chip.appendChild(kind);
+      const x = document.createElement("button");
+      x.type = "button";
+      x.className = "tag-remove";
+      x.textContent = "×";
+      x.title = `Remove ${tag}`;
+      x.addEventListener("click", () => { tags.splice(i, 1); render(); input.focus(); });
+      chip.appendChild(x);
+      list.appendChild(chip);
+    });
+    input.placeholder = tags.length ? "Add another…" : "staging, web-staging, /careers";
+  };
+
+  const commit = () => {
+    const parts = parseLanguageList(input.value);
+    for (const part of parts) if (!tags.includes(part)) tags.push(part);
+    input.value = "";
+    render();
+  };
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      // Enter must not submit the form it sits in — here it means "commit
+      // this entry", which is the only thing anyone expects it to mean.
+      e.preventDefault();
+      commit();
+    } else if (e.key === "Backspace" && !input.value && tags.length) {
+      tags.pop();
+      render();
+    }
+  });
+  // Typing an entry and clicking straight to the button should keep it, not
+  // silently drop what's still sitting in the box.
+  input.addEventListener("blur", commit);
+  root.addEventListener("click", (e) => { if (e.target === root || e.target === list) input.focus(); });
+
+  render();
+  return { value: () => { commit(); return tags.join(", "); } };
+}
+
 function renderSettingsPills(domainScope, languages, autoDetected, exclusions) {
   const domainPill = document.getElementById("domain-scope-pill");
   const languagePill = document.getElementById("language-pill");
@@ -159,7 +229,7 @@ function renderSettingsPills(domainScope, languages, autoDetected, exclusions) {
     // free text somebody typed, and a shared report renders whatever its owner
     // entered to everyone they shared it with.
     exclusionsPill.textContent = entries.length
-      ? `Excluded: ${entries.join(", ")}`
+      ? `Excluded: ${describeExclusions(exclusions).join(", ")}`
       : "Excluded: none";
   }
   if (!languagePill) return;
@@ -533,6 +603,9 @@ function initCrawlPage(opts) {
   // Prefilled once, never on later status events — otherwise a re-render
   // mid-crawl would wipe out whatever is being typed into it.
   let recrawlExclusionsPrefilled = false;
+  // The exclusions this crawl is running with, kept current from the status
+  // stream so the estimate panel can seed itself whenever it opens.
+  let currentExclusions = opts.exclusions || "";
   const prefillRecrawlExclusions = (exclusions) => {
     if (recrawlExclusionsPrefilled || !recrawlExclusionsInput) return;
     recrawlExclusionsPrefilled = true;
@@ -671,6 +744,11 @@ function initCrawlPage(opts) {
     renderSettingsPills(domainScope, languages, !languageSetting && !!detectedLanguage, exclusions);
   };
 
+  // Built the first time the panel is shown, seeded with the exclusions the
+  // crawl is already running with. An empty box here would read as "none set",
+  // and proceeding would look like it silently dropped them.
+  let estimateTags = null;
+
   const CONFIDENCE_LABELS = { high: "High confidence", medium: "Medium confidence", low: "Low confidence" };
 
   const showEstimatePanel = (result) => {
@@ -716,6 +794,9 @@ function initCrawlPage(opts) {
       ` · ${result.pages_per_minute.toLocaleString("en-US")} pages/min`;
     estimateConcurrencyPill.textContent = concurrencyLabel(result.concurrent_crawls) + " server load";
 
+    if (!estimateTags) {
+      estimateTags = initTagInput(document.getElementById("estimate-exclusions"), currentExclusions);
+    }
     actionRow.style.display = "none";
     estimatePanel.style.display = "block";
   };
@@ -1102,6 +1183,7 @@ function initCrawlPage(opts) {
     setStatCount(duplicateEl, data.duplicate_count);
     showDetectedLanguage(data.detected_language);
     updateSettingsPills(data.domain_scope, data.language_setting, data.detected_language, data.exclusions);
+    currentExclusions = data.exclusions || "";
     prefillRecrawlExclusions(data.exclusions);
     if (data.limit_reached) showLimitNote();
     if (data.status === "failed") showError(data.error);
@@ -1147,13 +1229,12 @@ function initCrawlPage(opts) {
   proceedBtn.addEventListener("click", async () => {
     proceedBtn.disabled = true;
     proceedBtn.textContent = "Resuming…";
-    const estimateExclusionsEl = document.getElementById("estimate-exclusions");
     await fetch("/crawl/" + opts.runId + "/resume", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // null, not "", so an untouched field means "keep what the crawl already
       // had" rather than "clear the exclusions".
-      body: JSON.stringify({ exclusions: (estimateExclusionsEl.value || "").trim() || null }),
+      body: JSON.stringify({ exclusions: estimateTags ? estimateTags.value() || null : null }),
     });
     estimatePanel.style.display = "none";
     actionRow.style.display = "";

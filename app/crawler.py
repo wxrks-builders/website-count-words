@@ -539,13 +539,25 @@ async def _build_estimate_result(job, url: str, filters: list[URLFilter]) -> dic
     else:
         confidence = "medium"
 
+    now = datetime.now(timezone.utc)
     started_at = datetime.fromisoformat(job.started_at)
-    elapsed_seconds = max((datetime.now(timezone.utc) - started_at).total_seconds(), 0.01)
-    elapsed_minutes = elapsed_seconds / 60
-    words_per_minute = job.total_words / elapsed_minutes
-    pages_per_minute = pages_fetched / elapsed_minutes
+    elapsed_seconds = max((now - started_at).total_seconds(), 0.01)
+
+    # Rate is measured over the fetching window only. Projecting from total
+    # elapsed time instead multiplies the one-time startup — Chromium launching,
+    # crawl4ai initialising, the language probe — by however many pages the site
+    # has. On a 15-page sample of a 16,708-page site that is a factor of 1,114:
+    # six seconds of browser startup became nearly two hours of predicted crawl.
+    crawl_seconds = max((now - (job.crawling_since or started_at)).total_seconds(), 0.01)
+    startup_seconds = max(elapsed_seconds - crawl_seconds, 0)
+    crawl_minutes = crawl_seconds / 60
+    words_per_minute = job.total_words / crawl_minutes
+    pages_per_minute = pages_fetched / crawl_minutes
+    # Startup is added back once, not once per page.
     estimated_duration_seconds = (
-        elapsed_seconds * (total_pages_estimate / pages_fetched) if pages_fetched else elapsed_seconds
+        startup_seconds + crawl_seconds * (total_pages_estimate / pages_fetched)
+        if pages_fetched
+        else elapsed_seconds
     )
     # +1 for this job itself — by this point job.status has already flipped
     # to "paused" (set by the caller just before this runs), so it's no
@@ -963,6 +975,9 @@ async def run_crawl(
                 excluded_tags=["nav", "footer", "aside", "form"],
                 word_count_threshold=10,
             )
+
+            # Startup is over; from here on the clock measures fetching only.
+            job.crawling_since = datetime.now(timezone.utc)
 
             async for result in await crawler.arun(url, config=config):
                 if result.url in job.pages or result.url in job.login_blocked or result.url in job.duplicates:

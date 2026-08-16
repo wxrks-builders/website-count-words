@@ -27,9 +27,12 @@
     <details class="crawl-advanced">
       <summary>Advanced</summary>
       <label class="advanced-field" for="exclusions">Exclude subdomains or folders</label>
-      {# Outside <form> so it doesn't join the form's flex row, but associated
-         with it by id so pressing Enter here still starts the crawl. #}
-      <input type="text" id="exclusions" form="crawl-form" class="exclusions-input" placeholder="staging, web-staging, /careers">
+      <div class="tag-input" id="exclusions">
+        <span data-tag-list></span>
+        {# Not associated with the form: Enter inside a tag input means "commit
+           this entry", not "start the crawl". #}
+        <input type="text" placeholder="staging, web-staging, /careers">
+      </div>
       <p class="muted advanced-hint">
         Comma-separated. A leading <code>/</code> excludes a folder, anything else a subdomain
         — <code>staging</code> also matches <code>web-staging.example.com</code>. Useful with
