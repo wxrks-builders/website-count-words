@@ -127,9 +127,15 @@
     </div>
 
     {# Below the run's own material on purpose: the offer is a guest on this
-       page, so it comes after what the report is actually for. #}
+       page, so it comes after what the report is actually for.
+
+       Closable either way, but keyed by audience. localStorage is per-browser,
+       so an owner's dismissal never reached a real visitor — what it did reach
+       was the owner's own browser when they opened their share link to check,
+       which made a working feature look broken. Two keys, two audiences, and
+       nobody is stuck with a banner they can't put away. #}
     {% if wxrks_pitch %}
-    <aside class="promo promo-wxrks" data-promo-dismiss="wxrks-pitch">
+    <aside class="promo promo-wxrks" data-promo-dismiss="{% if mode == 'shared' %}wxrks-pitch-shared{% else %}wxrks-pitch{% endif %}">
       <p class="promo-title">
         <strong>{{ "{:,}".format(wxrks_pitch.total_words) }}</strong> words to translate.
         {% if wxrks_pitch.preview %}<span class="promo-preview">Preview</span>{% endif %}

@@ -141,8 +141,10 @@ function initBilling() {
   }
 }
 
-// Every banner is dismissible and remembers it. Driven by the data attribute
-// rather than an id per banner, so a third one needs markup and nothing else.
+// Every banner is closable and remembers it, keyed by the attribute's value.
+// The same pitch uses a different key for the owner and for a shared link:
+// localStorage is per-browser, so those only ever collide in the one browser
+// that sees both — the owner's, checking their own share link.
 function initPromoDismiss() {
   for (const promo of document.querySelectorAll("[data-promo-dismiss]")) {
     // A preview is something an admin asked to see, so dismissing it — or

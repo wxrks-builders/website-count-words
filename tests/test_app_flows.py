@@ -384,7 +384,7 @@ def test_both_the_shared_report_and_the_owners_pitch_wxrks(app_env):
         body = app_env.client.get(url, headers=counter_host(app_env)).text
         assert "wxrks.com" in body, url
         assert "words to translate" in body, url
-        assert "promo-dismiss" in body, f"{url} — an owner meets this repeatedly"
+    # Whether each is dismissible differs by audience — see the test below.
 
 
 def test_the_markdown_surface_is_not_pitched_translation(app_env):
@@ -560,3 +560,19 @@ def test_the_home_page_pitches_the_last_crawl_worth_translating(app_env):
 def test_the_home_page_says_nothing_before_a_first_crawl(app_env):
     body = app_env.client.get("/", headers=counter_host(app_env)).text
     assert "wxrks.com" not in body
+
+
+def test_the_owners_dismissal_does_not_follow_them_to_their_share_link(app_env):
+    """Both audiences can put the banner away — but under different keys, or the
+    owner checking their own share link sees it already hidden and concludes the
+    feature is broken."""
+    save(app_env, total_words=662_000)
+    run(app_env.db.set_run_public("r", True))
+
+    owner = app_env.client.get("/crawl/r", headers=counter_host(app_env)).text
+    shared = app_env.client.get("/share/r", headers=counter_host(app_env)).text
+
+    assert 'data-promo-dismiss="wxrks-pitch"' in owner
+    assert 'data-promo-dismiss="wxrks-pitch-shared"' in shared
+    for body in (owner, shared):
+        assert "promo-dismiss" in body, "nobody is stuck with a banner they can't close"
