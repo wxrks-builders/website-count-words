@@ -184,3 +184,43 @@ class TestShareEmail:
         """total_words is optional on this sender — it must not blow up."""
         self._share(total_words=None, page_count=None)
         assert "View report" in sent["data"]["html"]
+
+
+class TestEmailConfiguration:
+    def test_nothing_is_sent_without_mailgun(self, monkeypatch):
+        """And it fails quietly, which is why the health page reports it."""
+        monkeypatch.setattr(notifications, "MAILGUN_API_KEY", "")
+        assert notifications.email_configured() is False
+
+    def test_configured_needs_both_halves(self, monkeypatch):
+        monkeypatch.setattr(notifications, "MAILGUN_API_KEY", "k")
+        monkeypatch.setattr(notifications, "MAILGUN_DOMAIN", "")
+        assert notifications.email_configured() is False
+        monkeypatch.setattr(notifications, "MAILGUN_DOMAIN", "mg.example.com")
+        assert notifications.email_configured() is True
+
+
+class TestTheEmailNamesThePlatform:
+    def test_a_detected_platform_reaches_the_offer(self, sent):
+        send(detected_cms="Webflow")
+        html = sent["data"]["html"]
+        assert "Webflow connector" in html
+        assert "/webflow-translation" in html
+
+    def test_an_unknown_platform_keeps_the_general_offer(self, sent):
+        send(detected_cms=None)
+        html = sent["data"]["html"]
+        assert "connector" not in html
+        assert "/solutions/website-translation" in html
+
+    def test_the_crawler_passes_what_it_detected_not_the_estimate(self):
+        """estimate_result only exists when a crawl paused, so a run that went
+        straight through was sending a generic offer for a site whose platform
+        had been recognised on every page."""
+        import inspect
+
+        from app import crawler
+
+        source = inspect.getsource(crawler.run_crawl)
+        assert "detected_cms=_resolve_detected_cms(job.cms_match_counts)," in source
+        assert 'detected_cms=(job.estimate_result or {}).get("detected_cms")' not in source

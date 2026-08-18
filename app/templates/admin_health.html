@@ -111,6 +111,22 @@
       </table>
     </div>
 
+    <div class="section-label" style="margin-top:32px;">Email</div>
+    <div class="totals-bar">
+      <div class="stat-card{% if not health.email_configured %} stat-card-muted{% endif %}"
+           title="Crawl-finished, shared-report and server-alert emails all need MAILGUN_API_KEY and MAILGUN_DOMAIN. Without them nothing is sent and nothing fails — it is simply skipped.">
+        <div class="muted">Mailgun</div>
+        <div class="big">{{ "Configured" if health.email_configured else "Not set" }}</div>
+        {% if not health.email_configured %}
+        <div class="muted">No email is being sent at all</div>
+        {% endif %}
+      </div>
+      <div class="stat-card stat-card-muted" title="Addresses in ADMIN_EMAILS. These receive the server alerts on this page.">
+        <div class="muted">Alert recipients</div>
+        <div class="big">{{ health.admin_alert_recipients }}</div>
+      </div>
+    </div>
+
     <div class="section-label" style="margin-top:32px;">Platform detection</div>
     <p class="muted" style="margin-top:0;">
       Runs crawled before the platform was recorded show the general translation

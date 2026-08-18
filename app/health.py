@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 
 import psutil
 
-from app import db, markdown_store, plans
+from app import db, markdown_store, notifications, plans
 from app.crawler import MAX_CONCURRENT_CRAWLS, _MEMORY_LIMIT_BYTES
 from app.job_store import list_active_jobs, list_queued_jobs
 
@@ -105,6 +105,11 @@ async def snapshot() -> dict:
     by_user = await db.disk_usage_by_user()
     return {
         "live": live_snapshot(),
+        # Nothing sends without these, and it fails quietly — which is how
+        # "the finished-crawl email has no offer in it" turns out to mean the
+        # email was never sent at all.
+        "email_configured": notifications.email_configured(),
+        "admin_alert_recipients": len(notifications.admin_emails()),
         "disk": disk,
         "by_user": by_user,
         # What the crawler believed it wrote, against what is actually there.

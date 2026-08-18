@@ -76,8 +76,19 @@ def _absolute_promo_logo(promo: dict | None, surface) -> dict | None:
     return {**promo, "logo_email_url": absolute_url(promo["logo_email_url"], surface)}
 
 
+def email_configured() -> bool:
+    return bool(MAILGUN_API_KEY and MAILGUN_DOMAIN)
+
+
 async def _send_email(to_email: str, subject: str, surface=None, **context) -> None:
-    if not MAILGUN_API_KEY or not MAILGUN_DOMAIN:
+    if not email_configured():
+        # Logged rather than returning in silence: "the email never arrived" is
+        # otherwise indistinguishable from "the email was never attempted", and
+        # the second one is a five-second fix nobody can see.
+        logger.info(
+            "Email not sent to %s (%s) — MAILGUN_API_KEY/MAILGUN_DOMAIN not set",
+            to_email, subject,
+        )
         return
 
     surface = surface or surfaces.DEFAULT

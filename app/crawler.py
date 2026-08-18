@@ -1226,7 +1226,11 @@ async def run_crawl(
                     page_count=len(job.pages),
                     run_id=job.id,
                     error=job.error or job.stopped_reason,
-                    detected_cms=(job.estimate_result or {}).get("detected_cms"),
+                    # From what the crawl detected, not from estimate_result —
+                    # that only exists when a crawl paused for an estimate, so a
+                    # run that went straight through sent a generic offer even
+                    # though its platform was known all along.
+                    detected_cms=_resolve_detected_cms(job.cms_match_counts),
                     confidence=(job.estimate_result or {}).get("confidence"),
                     surface=surfaces.for_key(job.surface),
                     # Lets the email make the same "on Pro this would have been
