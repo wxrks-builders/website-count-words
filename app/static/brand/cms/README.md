@@ -1,19 +1,23 @@
 # Platform logos for the translation offer
 
-Drop an SVG here named after the platform's slug and the offer picks it up on
-the next restart — `webflow.svg`, `contentful.svg`, `wordpress.svg`,
-`drupal.svg`. See `_logo_url` in `app/promos.py`.
+Drop a file here named after the platform's slug and the offer picks it up on
+the next restart: `webflow`, `contentful`, `wordpress`, `drupal`. See
+`connector_for` in `app/promos.py`.
 
-Nothing is shipped here on purpose. These are other companies' trademarks, and
-an approximation drawn from memory would be both worse than no logo and a
-misuse of someone's mark. Use the official asset from each platform's brand
-page, and check their brand guidelines — most permit "works with X" usage, some
-require a specific lockup or minimum clear space.
+`.svg`, `.webp` and `.png` all work on the web, and vector wins when a platform
+has more than one. **Email only ever uses `.png`** — SVG is unsupported in
+Outlook and WebP fails there too, so a platform without a PNG simply gets no
+logo in mail rather than a broken image. Webflow is currently in that position.
 
-Keep them square-ish and legible at 18px: that is the size they render at, on
-the near-black the offer sits on, so a dark monochrome mark will disappear.
-A white or single-colour-light version is usually the right one.
+Each mark renders at 16px on a light rounded tile, so a dark logo on a
+transparent background still reads against the near-black the offer sits on.
+That also means there's no need to recolour anyone's mark, which most brand
+guidelines forbid.
 
-The offer works without them — the platform is named in the copy either way,
-and the accent colour already carries the cue. Email never shows a logo at all,
-because SVG support across mail clients is too unreliable to depend on.
+Nothing is committed here by the app itself — these are other companies'
+trademarks. Take the official asset from each platform's brand page and check
+their guidelines; most permit "works with X" usage, some require a specific
+lockup or minimum clear space.
+
+The offer works without any of them: the platform is named in the copy either
+way, and the accent colour already carries the cue.

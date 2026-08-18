@@ -68,6 +68,14 @@ def _fmt(n: int) -> str:
     return f"{n:,}"
 
 
+def _absolute_promo_logo(promo: dict | None, surface) -> dict | None:
+    """A mail client has no origin to resolve a relative path against, so the
+    logo has to be absolute by the time the template sees it."""
+    if not promo or not promo.get("logo_email_url"):
+        return promo
+    return {**promo, "logo_email_url": absolute_url(promo["logo_email_url"], surface)}
+
+
 async def _send_email(to_email: str, subject: str, surface=None, **context) -> None:
     if not MAILGUN_API_KEY or not MAILGUN_DOMAIN:
         return
@@ -182,7 +190,7 @@ async def send_crawl_notification(
         stats=stats,
         notice=notice,
         notice_tone="danger" if status == "failed" else "warn",
-        promo=promo,
+        promo=_absolute_promo_logo(promo, surface),
         pricing_url=absolute_url("/pricing", surface),
         cta_url=absolute_url(f"/crawl/{run_id}", surface),
         cta_label="View full report",
@@ -218,7 +226,8 @@ async def send_share_notification(
         hero_stats=hero_stats,
         stats=[],
         # The recipient isn't a user, which is exactly who this pitch is for.
-        promo=share_email_promo(source_url, total_words, surface, detected_cms),
+        promo=_absolute_promo_logo(
+            share_email_promo(source_url, total_words, surface, detected_cms), surface),
         pricing_url=absolute_url("/pricing", surface),
         cta_url=share_url,
         cta_label="View report",

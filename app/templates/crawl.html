@@ -137,7 +137,7 @@
            style="--promo-mint: {{ p.accent }};">
       <p class="promo-title">
         {%- if p.logo_url %}
-        <img class="promo-logo" src="{{ p.logo_url }}" alt="{{ p.cms }}" width="18" height="18">
+        <span class="promo-logo"><img src="{{ p.logo_url }}" alt="{{ p.cms }}" width="16" height="16"></span>
         {%- endif %}
         <strong>{{ "{:,}".format(p.total_words) }}</strong> words to translate.
         {% if p.preview %}<span class="promo-preview">Preview</span>{% endif %}

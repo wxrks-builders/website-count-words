@@ -122,8 +122,18 @@
                   </div>
                 {% else %}
                   {# Accent follows the platform the crawler recognised — see
-                     app/promos.py. No logo here: SVG is unreliable across mail
-                     clients, so the platform is named in words instead. #}
+                     app/promos.py. The logo is PNG only and absolute: SVG is
+                     unsupported in Outlook and WebP fails there too, and a mail
+                     client can't resolve a relative path. On a light tile for
+                     the same reason as on the page — the marks arrive in
+                     whatever colours they ship. #}
+                  {% if promo.logo_email_url %}
+                  <div style="margin-bottom:9px;">
+                    <span style="display:inline-block; background:#F1EFE9; border-radius:6px; padding:4px; line-height:0;">
+                      <img src="{{ promo.logo_email_url }}" alt="{{ promo.cms }}" width="18" height="18" style="display:block; width:18px; height:18px;">
+                    </span>
+                  </div>
+                  {% endif %}
                   <div style="font-size:15px; font-weight:600; color:#F1EFE9; margin-bottom:5px;">
                     <span style="color:{{ promo.accent }}; font-weight:700;">{{ "{:,}".format(promo.total_words) }}</span> words to translate.
                   </div>

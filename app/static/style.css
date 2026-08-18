@@ -306,8 +306,24 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
 }
 /* The one number the line is about. */
 .promo-title strong { color: var(--promo-mint); font-weight: 700; }
-/* Only rendered when the file exists — see _logo_url in app/promos.py. */
-.promo-logo { vertical-align: -3px; margin-right: 7px; }
+/* A light tile behind the mark. These are other companies' assets and arrive
+   in whatever colours they ship — several are dark on transparent, which would
+   vanish on the near-black behind them. The tile makes any of them legible
+   without recolouring somebody's logo, which their brand guidelines usually
+   forbid anyway. */
+.promo-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 9px;
+  vertical-align: -6px;
+  background: var(--promo-paper);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.promo-logo img { display: block; width: 16px; height: 16px; object-fit: contain; }
 .promo-body {
   margin: 0;
   flex: 1 1 15rem;

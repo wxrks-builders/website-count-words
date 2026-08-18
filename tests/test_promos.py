@@ -265,3 +265,29 @@ class TestConnectorRouting:
         """Hand-drawn approximations of other companies' marks would be worse
         than none, so the slot stays empty until real assets are dropped in."""
         assert promos.connector_for("Webflow")["logo_url"] in (None, "/static/brand/cms/webflow.svg")
+
+
+class TestLogoAssets:
+    """The marks are dropped in by hand, in whatever format each brand page
+    offers, so the lookup has to cope with what actually arrives."""
+
+    def test_the_web_slot_takes_any_of_the_three_formats(self):
+        found = {c: promos.connector_for(c)["logo_url"]
+                 for c in ("Webflow", "Contentful", "WordPress", "Drupal")}
+        assert all(found.values()), f"a platform lost its logo: {found}"
+        assert found["Webflow"].endswith(".svg")
+        assert found["Contentful"].endswith(".webp")
+
+    def test_vector_wins_when_a_platform_has_both(self):
+        assert promos._LOGO_FORMATS[0] == "svg"
+
+    def test_email_only_ever_offers_png(self):
+        """SVG is unsupported in Outlook and WebP fails there too, so a platform
+        with only those gets no logo in mail rather than a broken image."""
+        assert promos._EMAIL_LOGO_FORMATS == ("png",)
+        assert promos.connector_for("WordPress")["logo_email_url"].endswith(".png")
+        assert promos.connector_for("Webflow")["logo_email_url"] is None
+
+    def test_an_unrecognised_platform_has_no_logo_to_show(self):
+        c = promos.connector_for(None)
+        assert c["logo_url"] is None and c["logo_email_url"] is None

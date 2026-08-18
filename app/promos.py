@@ -53,14 +53,23 @@ _GENERAL_PATH = "/solutions/website-translation"
 # The mint the offer already uses, for when there's no platform to speak of.
 _GENERAL_ACCENT = "#8FD3B4"
 
-# A logo is only shown if the file is actually there. Checked once at import
-# rather than per render, and absent by default: shipping hand-drawn
-# approximations of other companies' marks would be worse than showing none.
+# A logo is only shown if the file is actually there — nothing here is shipped
+# with the app, since these are other companies' trademarks.
 _LOGO_DIR = Path(__file__).resolve().parent / "static" / "brand" / "cms"
+# Vector first, then the raster formats, so a platform that has both gets the
+# one that stays sharp.
+_LOGO_FORMATS = ("svg", "webp", "png")
+# Mail clients are a different problem: SVG is unsupported in Outlook and
+# patchy elsewhere, and WebP fails in Outlook too. PNG is the only one safe
+# enough to put in an email, so that placement asks for it specifically.
+_EMAIL_LOGO_FORMATS = ("png",)
 
 
-def _logo_url(slug: str) -> str | None:
-    return f"/static/brand/cms/{slug}.svg" if (_LOGO_DIR / f"{slug}.svg").exists() else None
+def _find_logo(slug: str, formats: tuple[str, ...]) -> str | None:
+    for ext in formats:
+        if (_LOGO_DIR / f"{slug}.{ext}").exists():
+            return f"/static/brand/cms/{slug}.{ext}"
+    return None
 
 
 def connector_for(detected_cms: str | None) -> dict:
@@ -72,13 +81,14 @@ def connector_for(detected_cms: str | None) -> dict:
     entry = _CMS_CONNECTORS.get(detected_cms or "")
     if entry is None:
         return {"cms": None, "slug": None, "path": _GENERAL_PATH,
-                "accent": _GENERAL_ACCENT, "logo_url": None}
+                "accent": _GENERAL_ACCENT, "logo_url": None, "logo_email_url": None}
     return {
         "cms": detected_cms,
         "slug": entry["slug"],
         "path": entry["path"],
         "accent": entry["accent"],
-        "logo_url": _logo_url(entry["slug"]),
+        "logo_url": _find_logo(entry["slug"], _LOGO_FORMATS),
+        "logo_email_url": _find_logo(entry["slug"], _EMAIL_LOGO_FORMATS),
     }
 
 
