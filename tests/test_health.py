@@ -229,3 +229,70 @@ class TestSnapshots:
         assert snap["stop_counts"] == {}
         assert snap["recent_stops"] == []
         assert snap["markdown_bytes_counted"] == 0
+
+
+class TestCmsBackfill:
+    """Old runs point at the general translation page because the platform
+    wasn't recorded when they ran. The HTML was never kept, so recovering it
+    means asking each site again — once per site, not once per run."""
+
+    def test_only_completed_runs_without_a_platform_are_candidates(self, store):
+        save(store, "old", status="completed")
+        save(store, "known", status="completed", detected_cms="Webflow")
+        save(store, "failed", status="failed")
+
+        ids = {r["id"] for r in run(store.runs_missing_detected_cms())}
+        assert ids == {"old"}
+
+    def test_setting_it_covers_every_run_of_that_site(self, store):
+        save(store, "a", status="completed")
+        save(store, "b", status="completed")
+        assert run(store.set_detected_cms(["a", "b"], "Drupal")) == 2
+        assert run(store.get_run("a")).detected_cms == "Drupal"
+        assert run(store.get_run("b")).detected_cms == "Drupal"
+
+    def test_running_it_twice_finds_nothing_the_second_time(self, store):
+        save(store, "a", status="completed")
+        run(store.set_detected_cms(["a"], "Webflow"))
+        assert run(store.runs_missing_detected_cms()) == []
+
+    def test_signatures_read_served_html_so_no_browser_is_needed(self):
+        """What makes the backfill one cheap GET rather than a Chromium launch."""
+        from app.crawler import cms_signals_in
+
+        assert cms_signals_in('<html data-wf-page="abc">') == {"Webflow": 2}
+        assert cms_signals_in("<html>", {"link": '<x>; rel="https://api.w.org/"'}) == {"WordPress": 2}
+        assert cms_signals_in("<html>nothing</html>") == {}
+        assert cms_signals_in(None) == {}
+
+    def test_a_second_page_is_what_confirms_a_weak_signature(self, monkeypatch):
+        """The weights accumulate across pages by design: an asset domain like
+        ctfassets.net is worth 1 and deliberately not trusted alone, so one
+        request can never confirm Contentful however often it appears."""
+        from app.crawler import _resolve_detected_cms, cms_signals_in
+
+        one_page = cms_signals_in('<img src="//images.ctfassets.net/x.png">')
+        assert one_page == {"Contentful": 1}
+        assert _resolve_detected_cms(one_page) is None
+
+        combined = dict(one_page)
+        for name, weight in cms_signals_in('<img src="//images.ctfassets.net/y.png">').items():
+            combined[name] = combined.get(name, 0) + weight
+        assert _resolve_detected_cms(combined) == "Contentful"
+
+    def test_the_second_page_is_a_page_on_the_same_site(self):
+        """A protocol-relative href is somebody else's host, and urljoin would
+        follow it — which had this probing an image CDN instead of the site."""
+        from app.crawler import _second_page_path
+
+        assert _second_page_path('<a href="//cdn.other.com/logo.png">') is None
+        assert _second_page_path('<a href="/app.css"><a href="/pricing">') == "/pricing"
+        assert _second_page_path('<a href="/"><a href="/about">') == "/about"
+        assert _second_page_path("") is None
+
+    def test_drupal_8_is_recognised_not_just_drupal_7(self):
+        """Drupal 8 renamed the settings global, so the original pattern only
+        ever matched Drupal 7 sites."""
+        from app.crawler import cms_signals_in
+
+        assert cms_signals_in("<script>window.drupalSettings={};</script>") == {"Drupal": 2}

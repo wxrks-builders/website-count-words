@@ -751,6 +751,31 @@ async def count_stops_since(kind: str, since_iso: str) -> int:
         return (await cur.fetchone())["n"]
 
 
+async def runs_missing_detected_cms(limit: int = 200) -> list[dict]:
+    """Runs crawled before the platform was recorded. Only completed ones —
+    re-probing a site for a crawl that failed halfway isn't worth the request."""
+    conn = _conn()
+    async with conn.execute(
+        "SELECT id, source_url FROM runs"
+        " WHERE detected_cms IS NULL AND status = 'completed'"
+        " ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    ) as cur:
+        return [dict(row) for row in await cur.fetchall()]
+
+
+async def set_detected_cms(run_ids: list[str], cms: str) -> int:
+    if not run_ids:
+        return 0
+    conn = _conn()
+    placeholders = ",".join("?" for _ in run_ids)
+    cur = await conn.execute(
+        f"UPDATE runs SET detected_cms = ? WHERE id IN ({placeholders})", (cms, *run_ids)
+    )
+    await conn.commit()
+    return cur.rowcount
+
+
 async def known_run_ids() -> set[str]:
     """Every run id the database knows about, for spotting orphaned Markdown
     directories between boots — the startup sweep only runs at boot."""

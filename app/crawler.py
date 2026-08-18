@@ -493,6 +493,9 @@ _CMS_SIGNATURES: dict[str, list[tuple[re.Pattern, int]]] = {
     ],
     "Drupal": [
         (re.compile(r'Drupal\.settings'), 2),
+        # Drupal 8 renamed the settings global, so the pattern above only ever
+        # recognised Drupal 7 sites.
+        (re.compile(r'drupalSettings'), 2),
         (re.compile(r'/sites/default/files/'), 1),
     ],
     "Contentful": [
@@ -507,22 +510,31 @@ _WORDPRESS_REST_LINK_RE = re.compile(r'rel="https://api\.w\.org/"')
 _SITEMAP_CONVENTION_CMS = {"WordPress", "Webflow", "Shopify", "Squarespace", "Wix", "Ghost", "Drupal"}
 
 
-def _detect_cms_signals(result) -> dict[str, int]:
-    """Which CMS signatures matched this already-fetched page, as {name:
-    weight}. Takes the strongest pattern's weight per name if more than one
-    of that CMS's patterns matched the same page, rather than summing them —
-    a single page shouldn't count twice toward the same CMS."""
-    html = result.html or ""
+def cms_signals_in(html: str | None, headers: dict | None = None) -> dict[str, int]:
+    """Which CMS signatures match this HTML, as {name: weight}.
+
+    Takes the strongest pattern's weight per name rather than summing them — a
+    single page shouldn't count twice toward the same CMS.
+
+    Split out from the crawl so the backfill can reuse it against a plain HTTP
+    response: every signature here reads the served HTML or a response header,
+    none of them need a rendered page, which is what makes recovering the
+    platform for an old run cheap.
+    """
     matches: dict[str, int] = {}
     for name, patterns in _CMS_SIGNATURES.items():
-        weight = max((w for p, w in patterns if p.search(html)), default=0)
+        weight = max((w for p, w in patterns if p.search(html or "")), default=0)
         if weight:
             matches[name] = weight
-    headers = getattr(result, "response_headers", None) or {}
+    headers = headers or {}
     link_header = headers.get("link", "") or headers.get("Link", "")
     if _WORDPRESS_REST_LINK_RE.search(link_header):
         matches["WordPress"] = max(matches.get("WordPress", 0), 2)
     return matches
+
+
+def _detect_cms_signals(result) -> dict[str, int]:
+    return cms_signals_in(result.html, getattr(result, "response_headers", None))
 
 
 def _resolve_detected_cms(cms_match_counts: dict[str, int]) -> str | None:
@@ -1228,3 +1240,115 @@ async def run_crawl(
         # list_active_jobs()'s "starting"/"crawling" set) — see if anything
         # is waiting for it.
         await _maybe_start_next_queued()
+
+
+# A same-host path on the page, for the second probe below. The second
+# character must not be another slash: "//cdn.example.com/x" is a
+# protocol-relative URL to somebody else's host, and urljoin would happily
+# follow it off-site — which is how the first version of this ended up probing
+# an image CDN instead of a second page of the site.
+_HREF_RE = re.compile(r'href=["\'](/(?!/)[^"\'#?]*)["\']')
+# Fetching an asset tells us nothing about the platform.
+_NON_PAGE_SUFFIXES = (".css", ".js", ".json", ".xml", ".txt", ".svg", ".png",
+                      ".jpg", ".jpeg", ".webp", ".gif", ".ico", ".pdf", ".zip")
+
+
+def _second_page_path(html: str) -> str | None:
+    for match in _HREF_RE.finditer(html or ""):
+        path = match.group(1)
+        if len(path) > 1 and not path.lower().endswith(_NON_PAGE_SUFFIXES):
+            return path
+    return None
+
+
+async def _probe_platform(client, source_url: str) -> str | None:
+    """The platform behind one site, from at most two pages.
+
+    Two, because the weights are built to accumulate. A signature worth 1 — an
+    asset domain like ctfassets.net — is deliberately not trusted from a single
+    page, so one request can never confirm Contentful however many times the
+    string appears on the home page. A second page settles it exactly the way a
+    real crawl would, and is skipped entirely when the first page already
+    carries a signature worth 2.
+    """
+    try:
+        first = await client.get(source_url)
+    except Exception:
+        logger.info("Could not re-probe %s for its platform", source_url)
+        return None
+
+    signals = cms_signals_in(first.text, dict(first.headers))
+    resolved = _resolve_detected_cms(signals)
+    if resolved or not signals:
+        # Either settled, or nothing here suggests any platform — a second page
+        # of a site with no signal at all is a wasted request.
+        return resolved
+
+    path = _second_page_path(first.text)
+    if not path:
+        return None
+    try:
+        second = await client.get(urljoin(str(first.url), path))
+    except Exception:
+        return None
+
+    for name, weight in cms_signals_in(second.text, dict(second.headers)).items():
+        signals[name] = signals.get(name, 0) + weight
+    return _resolve_detected_cms(signals)
+
+
+async def backfill_detected_cms(limit: int = 200) -> dict:
+    """Recover the platform for runs crawled before it was recorded.
+
+    The runs table keeps page URLs but never the HTML, so there is nothing on
+    disk to re-read — the site has to be asked again. One plain GET per
+    distinct site, not per run, and no browser: the signatures all read served
+    HTML, so Chromium would be a great deal of machinery for a regex.
+
+    Best effort throughout. A site that has since moved, died or started
+    refusing us simply stays unrecognised, which is the same state it is in now.
+    """
+    import httpx
+
+    rows = await db.runs_missing_detected_cms(limit)
+    by_site: dict[str, list[str]] = {}
+    for row in rows:
+        by_site.setdefault(row["source_url"], []).append(row["id"])
+
+    detected: dict[str, str] = {}
+    unknown = 0
+    async with httpx.AsyncClient(
+        follow_redirects=True,
+        timeout=15.0,
+        # The same posture the crawl itself has: every page of a real crawl is
+        # fetched by Chromium, which presents as a browser. A bot-shaped
+        # User-Agent here got a 429 and an error shell from sites that serve
+        # the crawler fine, which made the backfill worse than useless — it
+        # would have recorded "unrecognised" for sites we can plainly read.
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml",
+        },
+    ) as client:
+        for source_url in by_site:
+            cms = await _probe_platform(client, source_url)
+            if cms:
+                detected[source_url] = cms
+            else:
+                unknown += 1
+
+    updated = 0
+    for source_url, cms in detected.items():
+        updated += await db.set_detected_cms(by_site[source_url], cms)
+
+    return {
+        "runs_examined": len(rows),
+        "sites_probed": len(by_site),
+        "sites_recognised": len(detected),
+        "sites_unknown": unknown,
+        "runs_updated": updated,
+        "by_platform": {cms: sum(1 for v in detected.values() if v == cms) for cms in set(detected.values())},
+    }

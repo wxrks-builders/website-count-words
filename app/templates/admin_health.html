@@ -111,6 +111,17 @@
       </table>
     </div>
 
+    <div class="section-label" style="margin-top:32px;">Platform detection</div>
+    <p class="muted" style="margin-top:0;">
+      Runs crawled before the platform was recorded show the general translation
+      offer instead of their connector. Nothing on disk can say what they were built
+      on — the HTML was never kept — so this asks each site again, once per site.
+    </p>
+    <div class="action-row">
+      <button id="backfill-cms-btn" class="secondary">Re-probe older runs</button>
+      <span class="muted" id="backfill-cms-result"></span>
+    </div>
+
     <div class="section-label" style="margin-top:32px;">Disk by user</div>
     <p class="muted" style="margin-top:0;">
       From what each run recorded as it wrote. Compare the total with "on disk" above —
@@ -136,5 +147,27 @@
   </div>
 
   <script src="/static/app.js"></script>
-  <script>initUserMenu();</script>
+  <script>
+    initUserMenu();
+    const backfillBtn = document.getElementById("backfill-cms-btn");
+    const backfillOut = document.getElementById("backfill-cms-result");
+    backfillBtn.addEventListener("click", async () => {
+      backfillBtn.disabled = true;
+      backfillBtn.textContent = "Asking each site…";
+      try {
+        const res = await fetch("/admin/backfill/detected-cms", { method: "POST" });
+        const d = await res.json();
+        const named = Object.entries(d.by_platform || {})
+          .map(([cms, n]) => `${n} ${cms}`).join(", ");
+        backfillOut.textContent =
+          `${d.runs_updated} run(s) updated from ${d.sites_probed} site(s)` +
+          (named ? ` — ${named}.` : ".") +
+          (d.sites_unknown ? ` ${d.sites_unknown} still unrecognised.` : "");
+      } catch (err) {
+        backfillOut.textContent = "Could not finish: " + err.message;
+      }
+      backfillBtn.disabled = false;
+      backfillBtn.textContent = "Re-probe older runs";
+    });
+  </script>
 {% endblock %}

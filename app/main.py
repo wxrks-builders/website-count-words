@@ -22,7 +22,8 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app import auth, billing, db, markdown_store, report, surfaces
 from app.auth import get_current_user, is_admin, require_admin, require_user, require_user_api
-from app.crawler import MAX_CONCURRENT_CRAWLS, PAUSE_AT_WORDS, estimate_result_from_snapshot, run_crawl
+from app.crawler import (MAX_CONCURRENT_CRAWLS, PAUSE_AT_WORDS, backfill_detected_cms,
+                         estimate_result_from_snapshot, run_crawl)
 from app.job_store import create_job, enqueue, get_job, list_active_jobs, list_queued_jobs, restore_job
 from app.models import CrawlRequest, ResumeRequest, ShareEmailRequest, ShareToggleRequest, User
 from app.notifications import absolute_url, remember_origin, send_server_alert, send_share_notification
@@ -767,6 +768,14 @@ async def admin_health_json(admin: User = Depends(require_admin)):
     """The same numbers, for anything that polls — Coolify, an uptime checker,
     a terminal. Behind require_admin like the page it mirrors."""
     return JSONResponse(await health_snapshot())
+
+
+@app.post("/admin/backfill/detected-cms")
+async def admin_backfill_detected_cms(admin: User = Depends(require_admin)):
+    """Recover the platform for runs crawled before it was recorded, so their
+    reports point at the right connector. Safe to run more than once — it only
+    looks at runs that still have none."""
+    return JSONResponse(await backfill_detected_cms())
 
 
 @app.get("/admin/jobs")
