@@ -306,6 +306,8 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
 }
 /* The one number the line is about. */
 .promo-title strong { color: var(--promo-mint); font-weight: 700; }
+/* Only rendered when the file exists — see _logo_url in app/promos.py. */
+.promo-logo { vertical-align: -3px; margin-right: 7px; }
 .promo-body {
   margin: 0;
   flex: 1 1 15rem;

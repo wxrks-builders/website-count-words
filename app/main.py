@@ -596,6 +596,7 @@ async def email_share(
         total_words=run.total_words,
         page_count=run.page_count,
         surface=request.state.surface,
+        detected_cms=run.detected_cms,
     )
     return JSONResponse(
         {"sent": True, "is_public": True, "recipients": await db.list_run_shares(run_id)}

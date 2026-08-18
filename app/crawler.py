@@ -422,6 +422,9 @@ async def _checkpoint(job, languages: list[str]) -> None:
         exclusions=job.exclusions,
         crawl_concurrency=job.concurrency,
         duration_seconds=_elapsed_seconds(job),
+        # Written at checkpoints too, so a crawl interrupted before it finishes
+        # still records the platform it recognised on the way.
+        detected_cms=_resolve_detected_cms(job.cms_match_counts),
         language=",".join(languages) if languages else None,
         language_auto_detected=job.detected_language is not None,
         resume_state=_recovered_resume_state(job),
@@ -1186,6 +1189,7 @@ async def run_crawl(
             stop_kind=job.stop_kind,
             stopped_reason=job.stopped_reason,
             error=job.error,
+            detected_cms=_resolve_detected_cms(job.cms_match_counts),
             language=",".join(languages) if languages else None,
             language_auto_detected=job.detected_language is not None,
             resume_state=job.resume_state,

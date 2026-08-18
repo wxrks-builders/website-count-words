@@ -39,6 +39,9 @@ class PageResult(BaseModel):
     # the word total entirely, same as a login wall.
     duplicate_of: str | None = None
     error: str | None = None
+    # The CMS recognised while crawling, if any — decides which connector the
+    # offer points at. See app/promos.py.
+    detected_cms: str | None = None
 
 
 class RunRecord(BaseModel):
@@ -68,6 +71,9 @@ class RunRecord(BaseModel):
     stop_kind: str | None = None
     stopped_reason: str | None = None
     error: str | None = None
+    # The CMS recognised while crawling, if any — decides which connector the
+    # offer points at, and what it's allowed to claim. See app/promos.py.
+    detected_cms: str | None = None
     language: str | None = None
     language_auto_detected: bool = False
     resume_state: dict | None = None

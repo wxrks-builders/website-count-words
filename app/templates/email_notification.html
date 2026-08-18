@@ -121,15 +121,24 @@
                     <a href="{{ pricing_url }}" style="display:inline-block; background:#8FD3B4; color:#191712; border-radius:6px; padding:9px 15px; font-size:12.5px; font-weight:700; text-decoration:none;">Compare plans &rarr;</a>
                   </div>
                 {% else %}
+                  {# Accent follows the platform the crawler recognised — see
+                     app/promos.py. No logo here: SVG is unreliable across mail
+                     clients, so the platform is named in words instead. #}
                   <div style="font-size:15px; font-weight:600; color:#F1EFE9; margin-bottom:5px;">
-                    <span style="color:#8FD3B4; font-weight:700;">{{ "{:,}".format(promo.total_words) }}</span> words to translate.
+                    <span style="color:{{ promo.accent }}; font-weight:700;">{{ "{:,}".format(promo.total_words) }}</span> words to translate.
                   </div>
                   <div style="font-size:13px; line-height:1.5; color:#A9A79E;">
+                    {% if promo.cms -%}
+                    wxrks has a {{ promo.cms }} connector: it pulls your content straight
+                    from {{ promo.cms }}, translates it with the best AI models and keeps
+                    it in sync.
+                    {%- else -%}
                     wxrks pulls the content and translates it with the best AI models,
                     then keeps it in sync as the site changes.
+                    {%- endif %}
                   </div>
                   <div style="margin-top:14px;">
-                    <a href="{{ promo.url }}" style="display:inline-block; background:#8FD3B4; color:#191712; border-radius:6px; padding:9px 15px; font-size:12.5px; font-weight:700; text-decoration:none;">See what wxrks would do with {{ promo.domain }} &rarr;</a>
+                    <a href="{{ promo.url }}" style="display:inline-block; background:{{ promo.accent }}; color:#191712; border-radius:6px; padding:9px 15px; font-size:12.5px; font-weight:700; text-decoration:none;">{% if promo.cms %}See the {{ promo.cms }} connector{% else %}See what wxrks would do with {{ promo.domain }}{% endif %} &rarr;</a>
                   </div>
                 {% endif %}
               </div>

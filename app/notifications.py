@@ -144,6 +144,7 @@ async def send_crawl_notification(
         crawl_concurrency=crawl_concurrency,
         billing_enabled=billing_enabled(),
         is_pro=is_pro,
+        detected_cms=detected_cms,
     )
 
     hero_stats: list[tuple[str, str]] = []
@@ -198,6 +199,7 @@ async def send_share_notification(
     total_words: int | None = None,
     page_count: int | None = None,
     surface=None,
+    detected_cms: str | None = None,
 ) -> None:
     from app.promos import share_email_promo
 
@@ -216,7 +218,7 @@ async def send_share_notification(
         hero_stats=hero_stats,
         stats=[],
         # The recipient isn't a user, which is exactly who this pitch is for.
-        promo=share_email_promo(source_url, total_words, surface),
+        promo=share_email_promo(source_url, total_words, surface, detected_cms),
         pricing_url=absolute_url("/pricing", surface),
         cta_url=share_url,
         cta_label="View report",

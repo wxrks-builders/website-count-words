@@ -216,3 +216,52 @@ class TestHomePitch:
         runs = [{"status": "completed", "total_words": 662_431, "source_url": "https://www.clay.com"}]
         url = promos.home_pitch(runs, surfaces.COUNTER)["url"]
         assert parse_qs(urlsplit(url).query)["utm_medium"] == ["home"]
+
+
+class TestConnectorRouting:
+    """Where the offer sends people, and what it's allowed to claim, follows the
+    platform the crawler recognised while fetching."""
+
+    def test_a_platform_with_its_own_page_gets_it(self):
+        for cms, path in (("Webflow", "/webflow-translation"),
+                          ("Contentful", "/contentful-translation")):
+            assert promos.connector_for(cms)["path"] == path, cms
+
+    def test_a_connector_without_a_landing_page_yet_points_at_the_general_one(self):
+        """WordPress and Drupal have the connector; the page doesn't exist yet,
+        and sending people to a URL that 404s would be worse than generic."""
+        for cms in ("WordPress", "Drupal"):
+            assert promos.connector_for(cms)["path"] == "/solutions/website-translation", cms
+            assert promos.connector_for(cms)["cms"] == cms, "still named in the copy"
+
+    def test_an_unrecognised_platform_says_nothing_about_one(self):
+        for cms in ("Shopify", "Wix", None, ""):
+            c = promos.connector_for(cms)
+            assert c["path"] == "/solutions/website-translation", cms
+            assert c["cms"] is None, "the copy must not name a connector we didn't detect"
+
+    def test_every_accent_is_light_enough_for_near_black(self):
+        """The offer sits on #191712. A platform's own brand colour is usually a
+        mid-tone that disappears there, so these are lifted — this pins that."""
+        for cms in ("Webflow", "Contentful", "WordPress", "Drupal", None):
+            hexval = promos.connector_for(cms)["accent"].lstrip("#")
+            r, g, b = (int(hexval[i:i + 2], 16) for i in (0, 2, 4))
+            luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            assert luminance > 130, f"{cms} accent is too dark to read on the offer"
+
+    def test_the_platform_reaches_every_placement(self):
+        runs = [{"status": "completed", "total_words": 99_999,
+                 "source_url": "https://a.com", "detected_cms": "Webflow"}]
+        home = promos.home_pitch(runs, surfaces.COUNTER)
+        crawl = promos.email_promo(source_url="https://a.com", total_words=99_999,
+                                   status="completed", surface=surfaces.COUNTER,
+                                   detected_cms="Webflow")
+        share = promos.share_email_promo("https://a.com", 99_999, surfaces.COUNTER, "Webflow")
+        for name, block in (("home", home), ("crawl email", crawl), ("share email", share)):
+            assert "/webflow-translation" in block["url"], name
+            assert block["cms"] == "Webflow", name
+
+    def test_no_logo_is_shown_unless_the_file_is_really_there(self):
+        """Hand-drawn approximations of other companies' marks would be worse
+        than none, so the slot stays empty until real assets are dropped in."""
+        assert promos.connector_for("Webflow")["logo_url"] in (None, "/static/brand/cms/webflow.svg")

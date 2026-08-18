@@ -13,6 +13,7 @@ chain of Jinja conditionals nobody can check.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
 from app import plans, surfaces
@@ -28,6 +29,57 @@ PRO_UPSELL_MIN_SECONDS = int(os.environ.get("PRO_UPSELL_MIN_SECONDS", "600"))
 # A shared report with almost nothing in it is not a translation project, and
 # pitching one against it just looks automated.
 WXRKS_MIN_WORDS = int(os.environ.get("WXRKS_MIN_WORDS", "5000"))
+
+# What to say, and where to send people, once the crawler recognises the
+# platform a site is built on. The keys are exactly the names produced by
+# _resolve_detected_cms in app/crawler.py.
+#
+# "connector" is whether wxrks has one, which is a different question from
+# whether there's a page describing it — WordPress and Drupal have the
+# connector but no landing page yet, so they say so and point at the general
+# one rather than a URL that would 404.
+#
+# accent is the platform's colour lifted until it holds on the near-black the
+# offer sits on. The brand colours themselves are mostly mid-tones that
+# disappear against it; these are the same hues at a legible lightness.
+_CMS_CONNECTORS: dict[str, dict] = {
+    "Webflow": {"slug": "webflow", "path": "/webflow-translation", "accent": "#5AA6FF"},
+    "Contentful": {"slug": "contentful", "path": "/contentful-translation", "accent": "#5FBDF5"},
+    "WordPress": {"slug": "wordpress", "path": "/solutions/website-translation", "accent": "#6FB6D8"},
+    "Drupal": {"slug": "drupal", "path": "/solutions/website-translation", "accent": "#5FB0EE"},
+}
+# Everything else, including a site whose platform we couldn't tell.
+_GENERAL_PATH = "/solutions/website-translation"
+# The mint the offer already uses, for when there's no platform to speak of.
+_GENERAL_ACCENT = "#8FD3B4"
+
+# A logo is only shown if the file is actually there. Checked once at import
+# rather than per render, and absent by default: shipping hand-drawn
+# approximations of other companies' marks would be worse than showing none.
+_LOGO_DIR = Path(__file__).resolve().parent / "static" / "brand" / "cms"
+
+
+def _logo_url(slug: str) -> str | None:
+    return f"/static/brand/cms/{slug}.svg" if (_LOGO_DIR / f"{slug}.svg").exists() else None
+
+
+def connector_for(detected_cms: str | None) -> dict:
+    """How the offer should speak about this site's platform.
+
+    Always returns something: a site on an unrecognised platform still has words
+    to translate, it just gets the general page and no platform name.
+    """
+    entry = _CMS_CONNECTORS.get(detected_cms or "")
+    if entry is None:
+        return {"cms": None, "slug": None, "path": _GENERAL_PATH,
+                "accent": _GENERAL_ACCENT, "logo_url": None}
+    return {
+        "cms": detected_cms,
+        "slug": entry["slug"],
+        "path": entry["path"],
+        "accent": entry["accent"],
+        "logo_url": _logo_url(entry["slug"]),
+    }
 
 
 def _pro_numbers(duration_seconds: int, concurrency: int) -> dict | None:
@@ -93,11 +145,17 @@ def _domain(url: str) -> str:
     return host[4:] if host.startswith("www.") else host
 
 
-def _wxrks_block(source_url: str, total_words: int, medium: str) -> dict:
+def _wxrks_block(source_url: str, total_words: int, medium: str,
+                 detected_cms: str | None = None) -> dict:
     """The pitch itself, shared by every placement so they can differ only in
     utm_medium — which is the point, since that's how you tell which one
-    converts."""
+    converts.
+
+    The platform decides the destination, the accent and whether the copy can
+    name a connector. Everything else is the same sentence.
+    """
     domain = _domain(source_url)
+    connector = connector_for(detected_cms)
     query = urlencode(
         {
             "utm_source": "wordcounter",
@@ -110,7 +168,8 @@ def _wxrks_block(source_url: str, total_words: int, medium: str) -> dict:
     return {
         "domain": domain,
         "total_words": total_words,
-        "url": f"{WXRKS_URL}?{query}",
+        "url": f"{WXRKS_URL}{connector['path']}?{query}",
+        **connector,
     }
 
 
@@ -135,7 +194,8 @@ def wxrks_pitch(run: RunRecord | None, surface, mode: str, preview: bool = False
     if run is None:
         return None
     if preview:
-        return {**_wxrks_block(run.source_url, max(run.total_words, WXRKS_MIN_WORDS), "preview"),
+        return {**_wxrks_block(run.source_url, max(run.total_words, WXRKS_MIN_WORDS),
+                               "preview", run.detected_cms),
                 "preview": True}
     if mode not in _WXRKS_MODES:
         return None
@@ -143,7 +203,8 @@ def wxrks_pitch(run: RunRecord | None, surface, mode: str, preview: bool = False
         return None
     if run.total_words < WXRKS_MIN_WORDS:
         return None
-    return _wxrks_block(run.source_url, run.total_words, "shared_report" if mode == "shared" else "report")
+    return _wxrks_block(run.source_url, run.total_words,
+                        "shared_report" if mode == "shared" else "report", run.detected_cms)
 
 
 def rank_page_promos(pro_block: dict | None, wxrks_block: dict | None, preview: bool = False):
@@ -181,11 +242,12 @@ def home_pitch(recent_runs, surface) -> dict | None:
             continue
         if (run.get("total_words") or 0) < WXRKS_MIN_WORDS:
             continue
-        return _wxrks_block(run["source_url"], run["total_words"], "home")
+        return _wxrks_block(run["source_url"], run["total_words"], "home", run.get("detected_cms"))
     return None
 
 
-def share_email_promo(source_url: str, total_words: int | None, surface) -> dict | None:
+def share_email_promo(source_url: str, total_words: int | None, surface,
+                      detected_cms: str | None = None) -> dict | None:
     """The pitch for the email that tells somebody a report was shared with them.
 
     wxrks only, never Pro: the reader here isn't the account holder and can't
@@ -197,7 +259,7 @@ def share_email_promo(source_url: str, total_words: int | None, surface) -> dict
         return None
     if not total_words or total_words < WXRKS_MIN_WORDS:
         return None
-    return {"kind": "wxrks", **_wxrks_block(source_url, total_words, "share_email")}
+    return {"kind": "wxrks", **_wxrks_block(source_url, total_words, "share_email", detected_cms)}
 
 
 def email_promo(
@@ -209,6 +271,7 @@ def email_promo(
     crawl_concurrency: int = 0,
     billing_enabled: bool = False,
     is_pro: bool = False,
+    detected_cms: str | None = None,
 ) -> dict | None:
     """At most one promo for the finished-crawl email, or None.
 
@@ -231,6 +294,6 @@ def email_promo(
             return {"kind": "pro", **numbers}
 
     if surface is not None and surface.key == surfaces.COUNTER.key and total_words >= WXRKS_MIN_WORDS:
-        return {"kind": "wxrks", **_wxrks_block(source_url, total_words, "crawl_email")}
+        return {"kind": "wxrks", **_wxrks_block(source_url, total_words, "crawl_email", detected_cms)}
 
     return None

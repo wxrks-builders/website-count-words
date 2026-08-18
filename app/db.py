@@ -161,6 +161,11 @@ async def _ensure_columns() -> None:
         ("stop_kind", "ALTER TABLE runs ADD COLUMN stop_kind TEXT"),
         ("stopped_reason", "ALTER TABLE runs ADD COLUMN stopped_reason TEXT"),
         ("error", "ALTER TABLE runs ADD COLUMN error TEXT"),
+        # Which CMS the crawler recognised while fetching. It was only ever
+        # stored on estimate_history, which gets a row only when a crawl pauses
+        # for an estimate — so a run that finished without pausing had no
+        # platform recorded anywhere. app/promos.py needs it on every run.
+        ("detected_cms", "ALTER TABLE runs ADD COLUMN detected_cms TEXT"),
     ]:
         if column not in existing:
             await conn.execute(ddl)
@@ -313,6 +318,7 @@ def _row_to_run(row: aiosqlite.Row) -> RunRecord:
         stop_kind=row["stop_kind"],
         stopped_reason=row["stopped_reason"],
         error=row["error"],
+        detected_cms=row["detected_cms"],
         language=row["language"],
         language_auto_detected=bool(row["language_auto_detected"]),
         resume_state=json.loads(resume_state_json) if resume_state_json else None,
@@ -400,6 +406,7 @@ async def save_run(
     stop_kind: str | None = None,
     stopped_reason: str | None = None,
     error: str | None = None,
+    detected_cms: str | None = None,
     language: str | None = None,
     language_auto_detected: bool = False,
     resume_state: dict | None = None,
@@ -418,10 +425,10 @@ async def save_run(
         INSERT INTO runs
             (id, source_url, user_id, created_at, status, total_words, page_count, limit_reached,
              login_blocked_count, duplicate_count, domain_scope, exclusions, crawl_concurrency,
-             duration_seconds, stop_kind, stopped_reason, error,
+             duration_seconds, stop_kind, stopped_reason, error, detected_cms,
              language, language_auto_detected, resume_state_json, pages_json,
              capture_markdown, markdown_pages, markdown_bytes, markdown_state, surface)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             status=excluded.status,
             total_words=excluded.total_words,
@@ -436,6 +443,7 @@ async def save_run(
             stop_kind=excluded.stop_kind,
             stopped_reason=excluded.stopped_reason,
             error=excluded.error,
+            detected_cms=excluded.detected_cms,
             language=excluded.language,
             language_auto_detected=excluded.language_auto_detected,
             resume_state_json=excluded.resume_state_json,
@@ -451,7 +459,7 @@ async def save_run(
             # periodic checkpointing during a crawl must not keep bumping it forward.
             run_id, source_url, user_id, now, status, total_words, len(pages), int(limit_reached),
             login_blocked_count, duplicate_count, domain_scope, exclusions, crawl_concurrency,
-            duration_seconds, stop_kind, stopped_reason, (error or "")[:500] or None,
+            duration_seconds, stop_kind, stopped_reason, (error or "")[:500] or None, detected_cms,
             language, int(language_auto_detected), resume_state_json, pages_json,
             int(capture_markdown), markdown_pages, markdown_bytes, markdown_state, surface,
         ),
@@ -581,7 +589,7 @@ async def list_estimate_history() -> list[dict]:
 # deliberately avoid pages_json — parsing it for every run is what would make
 # "all runs" expensive on an account (or a server) with a lot of history.
 _RUN_SUMMARY_COLUMNS = ("id, source_url, created_at, status, total_words, page_count, is_public, is_sample,"
-                        " markdown_pages, markdown_bytes")
+                        " markdown_pages, markdown_bytes, detected_cms")
 
 
 def _row_to_run_summary(row: aiosqlite.Row) -> dict:
@@ -596,6 +604,7 @@ def _row_to_run_summary(row: aiosqlite.Row) -> dict:
         "is_sample": bool(row["is_sample"]),
         "markdown_pages": row["markdown_pages"],
         "markdown_bytes": row["markdown_bytes"],
+        "detected_cms": row["detected_cms"],
     }
     if "owner_email" in row.keys():
         summary["owner_email"] = row["owner_email"]
