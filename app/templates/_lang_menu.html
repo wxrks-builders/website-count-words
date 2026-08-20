@@ -1,0 +1,32 @@
+{# The language menu, standalone. A peer of the account chip rather than a
+   setting inside it — the current language is legible without opening
+   anything, which is the point of it being its own control.
+
+   Every entry points at the page you are already on, in that language. #}
+<div class="lang-menu" data-menu>
+  <button type="button" class="lang-btn" data-menu-button
+          aria-haspopup="true" aria-expanded="false" aria-controls="lang-menu-list"
+          title="{{ _('Change language') }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+         aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18"></path>
+    </svg>
+    <span class="lang-code">{{ lang | upper }}</span>
+    <span class="chev" aria-hidden="true">▾</span>
+  </button>
+
+  <div class="lang-menu-list" id="lang-menu-list" role="menu" data-menu-panel hidden>
+    <div class="user-menu-label">{{ _('Language') }}</div>
+    <div class="lang-grid">
+      {% for l in language_links %}
+      <a role="menuitem" href="{{ l.href }}" hreflang="{{ l.code }}"
+         class="lang-option{% if l.current %} is-current{% endif %}"
+         {% if l.current %}aria-current="true"{% endif %}>
+        <span>{{ l.name }}</span>
+        <span class="lang-option-code">{{ l.code | upper }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>

@@ -9,15 +9,18 @@
      name now lives in the dropdown, so adding an item doesn't make the header
      longer — which is what happened as Upgrade, Billing and the admin pages
      arrived one at a time. #}
-  <div class="user-menu" id="user-menu">
-    <button type="button" class="user-chip" aria-haspopup="true" aria-expanded="false" aria-controls="user-menu-list">
+  <div class="topbar-right">
+    {% include "_lang_menu.html" %}
+
+    <div class="user-menu" id="user-menu" data-menu>
+    <button type="button" class="user-chip" data-menu-button aria-haspopup="true" aria-expanded="false" aria-controls="user-menu-list">
       {% if user.picture %}<img src="{{ user.picture }}" alt="">{% else %}<span class="avatar">{{ user.name[0] | upper }}</span>{% endif %}
       <span class="name">{{ user.name }}</span>
       {% if billing_enabled and user.is_pro %}<span class="plan-pill" title="{{ _('Crawls run at full speed') }}">{{ _('Pro') }}</span>{% endif %}
       <span class="chev" aria-hidden="true">▾</span>
     </button>
 
-    <div class="user-menu-list" id="user-menu-list" role="menu" hidden>
+    <div class="user-menu-list" id="user-menu-list" role="menu" data-menu-panel hidden>
       <div class="user-menu-head">
         <div class="user-menu-name">{{ user.name }}</div>
         <div class="user-menu-email">{{ user.email }}</div>
@@ -47,19 +50,8 @@
       {% endif %}
 
       <div class="user-menu-sep"></div>
-      <div class="user-menu-label">{{ _('Language') }}</div>
-      {# Each one links to this same page in that language, so choosing a
-         language never costs you the page you were on. #}
-      <div class="lang-grid">
-        {% for l in language_links %}
-        <a role="menuitem" href="{{ l.href }}" hreflang="{{ l.code }}"
-           class="lang-option{% if l.current %} is-current{% endif %}"
-           {% if l.current %}aria-current="true"{% endif %}>{{ l.name }}</a>
-        {% endfor %}
-      </div>
-
-      <div class="user-menu-sep"></div>
       <a role="menuitem" href="{{ url('/logout') }}">{{ _('Log out') }}</a>
+      </div>
     </div>
   </div>
 </header>

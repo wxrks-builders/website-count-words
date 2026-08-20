@@ -9,7 +9,7 @@
       <span class="logo-name">{{ surface.name }}</span>
     </a>
     <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-      {% include "_lang_switcher.html" %}
+      {% include "_lang_menu.html" %}
     <a class="button secondary" href="{{ url('/login') }}">{{ _('Sign in') }}</a>
     </div>
   </header>
@@ -60,4 +60,8 @@
       {% endfor %}
     </div>
   </footer>
+
+  {# For the language menu, which is the only script on this page. #}
+  <script src="/static/app.js"></script>
+  <script>initUserMenu();</script>
 {% endblock %}

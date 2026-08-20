@@ -1331,34 +1331,76 @@ tr.page-blocked-host td.url-cell { color: var(--warn-text); }
 td.open-cell { text-align: end; }
 td.open-cell a { font-size: 12px; white-space: nowrap; }
 
-/* Language switcher. A grid because eleven stacked items would make the menu
-   taller than most windows, and the names are short. */
-.lang-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
-  padding: 2px 0 4px;
-}
-.user-menu-list a.lang-option {
-  padding: 6px 10px;
-  font-size: 12.5px;
-  color: var(--muted);
-}
-.user-menu-list a.lang-option:hover { color: var(--text); }
-.user-menu-list a.lang-option.is-current {
-  color: var(--brand);
-  font-weight: 600;
-  background: var(--brand-tint);
-}
+/* ---------- Language menu ----------
+   Its own control beside the account chip rather than a row inside it, so the
+   current language is legible without opening anything. Same panel treatment
+   as the user menu — it is a peer, not a variant. */
+.topbar-right { display: flex; align-items: center; gap: 10px; }
 
-/* The signed-out version, on the landing, login and pricing headers. */
-.lang-inline {
+.lang-menu { position: relative; }
+button.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 13px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+}
+button.lang-btn:hover { background: var(--card); border-color: #B9B4A4; }
+.lang-menu.is-open button.lang-btn { border-color: var(--border-strong); }
+.lang-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.lang-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.lang-menu.is-open .chev { transform: rotate(180deg); }
+
+.lang-menu-list {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 236px;
+  padding: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(25, 23, 18, 0.12);
+}
+/* Two columns because eleven stacked rows is taller than some windows, and the
+   names are short enough to pair. */
+.lang-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; }
+a.lang-option {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  font-size: 12.5px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
 }
-.lang-inline a { color: var(--muted); }
-.lang-inline a:hover { color: var(--text); text-decoration: none; }
-.lang-inline a.is-current { color: var(--text); font-weight: 600; }
+a.lang-option:hover { background: var(--bg); text-decoration: none; }
+.lang-option-code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+a.lang-option.is-current {
+  background: var(--brand-tint);
+  color: var(--brand);
+  font-weight: 600;
+}
+a.lang-option.is-current .lang-option-code { color: var(--brand); }
+
+/* On the signed-out pages the control sits beside a Sign in button rather than
+   an account chip; it needs no other treatment. */
+.landing .lang-menu, .login-screen .lang-menu { flex-shrink: 0; }

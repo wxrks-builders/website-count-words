@@ -165,8 +165,8 @@ class TestTheSwitcher:
     def _links(self, html):
         import re
 
-        return {n.strip(): h for h, _, n in
-                re.findall(r'<a href="([^"]*)" hreflang="([^"]+)"[^>]*>([^<]+)</a>', html)}
+        return {n.strip(): h for h, _, n in re.findall(
+            r'<a[^>]*href="([^"]*)"[^>]*hreflang="([^"]+)"[^>]*>\s*<span>([^<]+)</span>', html)}
 
     def test_it_keeps_you_on_the_page_you_are_on(self, i18n_client):
         """Landing somewhere else for choosing a language loses what you were
@@ -185,10 +185,26 @@ class TestTheSwitcher:
         assert 'aria-current="true"' in i18n_client.get("/de/login").text
 
     def test_signed_out_visitors_get_one(self, i18n_client):
-        """The public pages are where translation earns its traffic, and they
-        have no user menu to hang a picker off."""
+        """The public pages are where translation earns its traffic, and the
+        same control serves them — not a second, different one."""
         for path in ("/", "/login"):
-            assert "lang-inline" in i18n_client.get(path).text, path
+            html = i18n_client.get(path).text
+            assert 'class="lang-menu"' in html, path
+            assert "initUserMenu" in html, f"{path} — nothing would open it"
+
+    def test_it_stands_alone_rather_than_living_in_the_account_menu(self, i18n_client):
+        """Its own control, so the current language is legible without opening
+        anything — which is the whole reason for separating it."""
+        html = i18n_client.get("/de/login").text
+        assert ">DE<" in html, "the trigger names the current language"
+        assert 'data-menu-button' in html
+
+    def test_the_trigger_names_the_current_language(self, i18n_client):
+        import re
+
+        for path, expected in (("/", "EN"), ("/de/login", "DE"), ("/ar/login", "AR")):
+            html = i18n_client.get(path).text
+            assert re.search(r'lang-code">([^<]+)', html).group(1) == expected, path
 
 
 class TestEmailsFollowTheirReader:

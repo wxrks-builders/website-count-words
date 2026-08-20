@@ -114,32 +114,39 @@ async function goToStripe(path, errorEl) {
   }
 }
 
-// The user chip opens a menu. Bound wherever app.js loads, because the chip is
-// on every signed-in page and the admin pages reach the rest of the app only
-// through it.
+// Menus in the header — the account chip and the language picker. Driven by
+// data attributes rather than an id per menu, so a third one needs markup and
+// nothing else, and so opening one always closes the other.
 function initUserMenu() {
-  const root = document.getElementById("user-menu");
-  if (!root) return;
-  const button = root.querySelector(".user-chip");
-  const list = document.getElementById("user-menu-list");
+  const menus = [...document.querySelectorAll("[data-menu]")].map((root) => ({
+    root,
+    button: root.querySelector("[data-menu-button]"),
+    panel: root.querySelector("[data-menu-panel]"),
+  })).filter((m) => m.button && m.panel);
 
-  const setOpen = (open) => {
-    list.hidden = !open;
-    button.setAttribute("aria-expanded", open ? "true" : "false");
-    root.classList.toggle("is-open", open);
+  const setOpen = (menu, open) => {
+    menu.panel.hidden = !open;
+    menu.button.setAttribute("aria-expanded", open ? "true" : "false");
+    menu.root.classList.toggle("is-open", open);
   };
+  const closeAll = () => menus.forEach((m) => setOpen(m, false));
 
-  button.addEventListener("click", (e) => {
-    e.stopPropagation();
-    setOpen(list.hidden);
-  });
-  // Clicking anywhere else closes it — a menu that only closes via its own
+  for (const menu of menus) {
+    menu.button.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const wasClosed = menu.panel.hidden;
+      // Two panels open at once in a header this size overlap each other.
+      closeAll();
+      if (wasClosed) setOpen(menu, true);
+    });
+  }
+  // Clicking anywhere else closes them — a menu that only closes via its own
   // button is a menu people leave open by accident.
   document.addEventListener("click", (e) => {
-    if (!root.contains(e.target)) setOpen(false);
+    if (!menus.some((m) => m.root.contains(e.target))) closeAll();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") setOpen(false);
+    if (e.key === "Escape") closeAll();
   });
 }
 
