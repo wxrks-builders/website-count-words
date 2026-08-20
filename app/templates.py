@@ -47,6 +47,18 @@ def _globals(request: Request) -> dict:
             (i18n.HREFLANG.get(code, code), i18n.localized_path(bare_path, code))
             for code in i18n.LANGUAGES
         ],
+        # The switcher. Each entry points at the page you are already on, in
+        # that language — landing somewhere else for choosing a language is a
+        # small betrayal, and it loses whatever you were reading.
+        "language_links": [
+            {
+                "code": code,
+                "name": i18n.LANGUAGE_NAMES.get(code, code),
+                "href": i18n.localized_path(bare_path, code),
+                "current": code == lang,
+            }
+            for code in i18n.selectable_languages()
+        ],
         "num": lambda value: i18n.format_number(value or 0, lang),
         "js_strings": js_strings.catalogue(lang),
     }

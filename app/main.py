@@ -613,6 +613,10 @@ async def email_share(
         page_count=run.page_count,
         surface=request.state.surface,
         detected_cms=run.detected_cms,
+        # The sender's language: whoever receives this has no account to have a
+        # preference on, and the person choosing to share is the one whose
+        # words introduce it.
+        lang=request.state.lang,
     )
     return JSONResponse(
         {"sent": True, "is_public": True, "recipients": await db.list_run_shares(run_id)}

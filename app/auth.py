@@ -51,7 +51,18 @@ async def get_current_user(request: Request) -> User | None:
     if user_id is None:
         return None
     if not hasattr(request.state, "user_cache"):
-        request.state.user_cache = await db.get_user(user_id)
+        user = await db.get_user(user_id)
+        # Remember the language they are browsing in. Emails are sent later from
+        # background tasks that have no request to read a prefix from, so this
+        # is the only moment the preference is observable.
+        lang = getattr(request.state, "lang", None)
+        if user is not None and lang and lang != user.lang:
+            try:
+                await db.set_user_lang(user.id, lang)
+                user = user.model_copy(update={"lang": lang})
+            except Exception:
+                logger.exception("Could not remember the language for user %s", user.id)
+        request.state.user_cache = user
     return request.state.user_cache
 
 

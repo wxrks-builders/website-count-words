@@ -18,6 +18,9 @@ class User(BaseModel):
     stripe_customer_id: str | None = None
     stripe_subscription_id: str | None = None
     plan_renews_at: str | None = None
+    # The language this account last browsed in — what their emails are written
+    # in, since a background task has no request to read a prefix from.
+    lang: str = "en"
 
     @property
     def is_pro(self) -> bool:

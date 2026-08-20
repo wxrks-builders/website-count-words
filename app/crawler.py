@@ -1244,6 +1244,7 @@ async def run_crawl(
                     duration_seconds=_elapsed_seconds(job),
                     crawl_concurrency=job.concurrency,
                     is_pro=user.is_pro,
+                    lang=user.lang,
                 )
 
         # This job just freed a slot (or, if paused, was already outside

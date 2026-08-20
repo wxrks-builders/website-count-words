@@ -19,7 +19,26 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(str(Path(__file__).resolve().parents[1] / ".env"))
 
+import pytest  # noqa: E402
+
 from app import i18n  # noqa: E402
+
+
+@pytest.fixture()
+def i18n_client(monkeypatch, tmp_path):
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "i.db"))
+    monkeypatch.setenv("MARKDOWN_DIR", str(tmp_path / "markdown"))
+    import importlib
+
+    import app.db as db
+    import app.main as main
+    importlib.reload(db)
+    importlib.reload(main)
+    from fastapi.testclient import TestClient
+
+    with TestClient(main.app) as client:
+        client.headers["host"] = "wordcounter.wxrks.app"
+        yield client
 
 
 class TestTheLanguagesAreTheOnesWxrksPublishes:
@@ -138,3 +157,66 @@ class TestPseudoLocale:
 
     def test_it_is_off_unless_asked_for(self):
         assert i18n.PSEUDO_LANG not in i18n.LANGUAGES
+
+
+class TestTheSwitcher:
+    """Routing without a picker means typing URLs, which is not a feature."""
+
+    def _links(self, html):
+        import re
+
+        return {n.strip(): h for h, _, n in
+                re.findall(r'<a href="([^"]*)" hreflang="([^"]+)"[^>]*>([^<]+)</a>', html)}
+
+    def test_it_keeps_you_on_the_page_you_are_on(self, i18n_client):
+        """Landing somewhere else for choosing a language loses what you were
+        reading, which is a small betrayal at exactly the wrong moment."""
+        links = self._links(i18n_client.get("/de/login").text)
+        assert links["Français"] == "/fr/login"
+        assert links["日本語"] == "/ja/login"
+        assert links["English"] == "/login", "English is the root, so it has no prefix"
+
+    def test_every_language_is_offered_and_named_in_itself(self, i18n_client):
+        links = self._links(i18n_client.get("/").text)
+        assert len(links) == len(i18n.LANGUAGES)
+        assert "العربية" in links and "日本語" in links and "Deutsch" in links
+
+    def test_the_current_one_is_marked(self, i18n_client):
+        assert 'aria-current="true"' in i18n_client.get("/de/login").text
+
+    def test_signed_out_visitors_get_one(self, i18n_client):
+        """The public pages are where translation earns its traffic, and they
+        have no user menu to hang a picker off."""
+        for path in ("/", "/login"):
+            assert "lang-inline" in i18n_client.get(path).text, path
+
+
+class TestEmailsFollowTheirReader:
+    def test_the_language_is_remembered_on_the_account(self):
+        """Emails are sent from background tasks with no request to read a
+        prefix from, so browsing is the only moment the choice is observable."""
+        from app.models import User
+
+        assert User(id=1, google_sub="s", email="a@b.c", name="A").lang == "en"
+
+    def test_the_crawl_email_uses_the_owners_language(self):
+        import inspect
+
+        from app import crawler
+
+        assert "lang=user.lang," in inspect.getsource(crawler.run_crawl)
+
+    def test_the_share_email_uses_the_senders(self):
+        """Whoever receives it has no account to hold a preference, and the
+        person choosing to share is the one whose words introduce it."""
+        import inspect
+
+        from app import main
+
+        assert "lang=request.state.lang," in inspect.getsource(main.email_share)
+
+    def test_email_numbers_are_grouped_for_the_reader_too(self):
+        from app.notifications import _num
+
+        assert _num(662431, "en") == "662,431"
+        assert _num(662431, "de") == "662.431"

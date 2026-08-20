@@ -1330,3 +1330,35 @@ tr.page-blocked-host { color: var(--warn-text); background: var(--blocked-row-bg
 tr.page-blocked-host td.url-cell { color: var(--warn-text); }
 td.open-cell { text-align: end; }
 td.open-cell a { font-size: 12px; white-space: nowrap; }
+
+/* Language switcher. A grid because eleven stacked items would make the menu
+   taller than most windows, and the names are short. */
+.lang-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 2px 0 4px;
+}
+.user-menu-list a.lang-option {
+  padding: 6px 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.user-menu-list a.lang-option:hover { color: var(--text); }
+.user-menu-list a.lang-option.is-current {
+  color: var(--brand);
+  font-weight: 600;
+  background: var(--brand-tint);
+}
+
+/* The signed-out version, on the landing, login and pricing headers. */
+.lang-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+}
+.lang-inline a { color: var(--muted); }
+.lang-inline a:hover { color: var(--text); text-decoration: none; }
+.lang-inline a.is-current { color: var(--text); font-weight: 600; }

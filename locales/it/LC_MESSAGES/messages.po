@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-20 10:38-0400\n"
+"POT-Creation-Date: 2026-08-20 10:43-0400\n"
 "PO-Revision-Date: 2026-08-20 10:34-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: it\n"
@@ -23,10 +23,26 @@ msgid "%(n)s pages at a time"
 msgstr ""
 
 #, python-format
+msgid "%(person)s shared a report with you"
+msgstr ""
+
+#, python-format
+msgid "%(person)s shared a word-count report with you"
+msgstr ""
+
+#, python-format
+msgid "%(words)s words across %(pages)s pages"
+msgstr ""
+
+#, python-format
 msgid "%(words)s words/min · %(pages)s pages/min"
 msgstr ""
 
 msgid "(root)"
+msgstr ""
+
+#, python-format
+msgid "A word count for %(site)s"
 msgstr ""
 
 #, python-format
@@ -137,6 +153,12 @@ msgid ""
 "or a CMS migration."
 msgstr ""
 
+msgid "Crawl finished"
+msgstr ""
+
+msgid "Crawl stopped"
+msgstr ""
+
 msgid "Crawling"
 msgstr ""
 
@@ -150,6 +172,9 @@ msgid "Delete this run and everything saved with it? This cannot be undone."
 msgstr ""
 
 msgid "Deleting…"
+msgstr ""
+
+msgid "Detected platform"
 msgstr ""
 
 #, python-format
@@ -179,6 +204,9 @@ msgid ""
 "English runs near 1.3 tokens per word. A 662,000-word site is about "
 "880,000 tokens of clean text — as raw HTML it would be several times "
 "that, nearly all of it markup."
+msgstr ""
+
+msgid "Estimate confidence"
 msgstr ""
 
 msgid "Estimate — before you crawl"
@@ -320,6 +348,9 @@ msgstr ""
 msgid "No crawls yet — try one above."
 msgstr ""
 
+msgid "No further detail was recorded."
+msgstr ""
+
 msgid "No pages counted yet."
 msgstr ""
 
@@ -359,6 +390,9 @@ msgid "Pages counted"
 msgstr ""
 
 msgid "Pages fetched so far"
+msgstr ""
+
+msgid "Pages so far"
 msgstr ""
 
 msgid ""
@@ -489,6 +523,12 @@ msgstr ""
 msgid "The token arithmetic is the argument"
 msgstr ""
 
+msgid "They ran a word count on this site and gave you access to the full report."
+msgstr ""
+
+msgid "This crawl couldn't be completed."
+msgstr ""
+
 #, python-format
 msgid ""
 "This crawl stalled — no page was fetched for over %(minutes)s minutes — "
@@ -506,6 +546,11 @@ msgstr ""
 msgid ""
 "This crawl was stopped automatically — it was using too much memory to "
 "continue safely on this server."
+msgstr ""
+
+msgid ""
+"This crawl was stopped before it finished, so the report shows partial "
+"results."
 msgstr ""
 
 msgid "This subdomain only"
@@ -546,6 +591,12 @@ msgstr ""
 msgid "Upgrade to Pro"
 msgstr ""
 
+msgid "View full report"
+msgstr ""
+
+msgid "View report"
+msgstr ""
+
 msgid "Waits its turn when the server is busy"
 msgstr ""
 
@@ -564,8 +615,22 @@ msgstr ""
 msgid "Words"
 msgstr ""
 
+msgid "Words so far"
+msgstr ""
+
+#, python-format
+msgid "You're getting this because someone shared a %(product)s report with you."
+msgstr ""
+
+#, python-format
+msgid "You're getting this because you started this crawl on %(product)s."
+msgstr ""
+
 #, python-format
 msgid "You're number %(n)s in the queue. It'll start on its own."
+msgstr ""
+
+msgid "Your crawl finished. Here's what it counted."
 msgstr ""
 
 msgid "Your current plan"

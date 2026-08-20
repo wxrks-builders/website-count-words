@@ -47,6 +47,18 @@
       {% endif %}
 
       <div class="user-menu-sep"></div>
+      <div class="user-menu-label">{{ _('Language') }}</div>
+      {# Each one links to this same page in that language, so choosing a
+         language never costs you the page you were on. #}
+      <div class="lang-grid">
+        {% for l in language_links %}
+        <a role="menuitem" href="{{ l.href }}" hreflang="{{ l.code }}"
+           class="lang-option{% if l.current %} is-current{% endif %}"
+           {% if l.current %}aria-current="true"{% endif %}>{{ l.name }}</a>
+        {% endfor %}
+      </div>
+
+      <div class="user-menu-sep"></div>
       <a role="menuitem" href="{{ url('/logout') }}">{{ _('Log out') }}</a>
     </div>
   </div>

@@ -13,7 +13,10 @@
         <span class="logo-sep"></span>
         <span class="logo-name">{{ _(surface.name) }}</span>
       </a>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        {% include "_lang_switcher.html" %}
       <a class="button secondary" href="{{ url('/login') }}">{{ _('Sign in') }}</a>
+      </div>
     </header>
   {% endif %}
 

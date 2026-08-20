@@ -182,6 +182,10 @@ async def _ensure_columns() -> None:
         ("stripe_customer_id", "ALTER TABLE users ADD COLUMN stripe_customer_id TEXT"),
         ("stripe_subscription_id", "ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT"),
         ("plan_renews_at", "ALTER TABLE users ADD COLUMN plan_renews_at TEXT"),
+        # Which language to write to this person in. Emails are sent from
+        # background tasks with no request to read a prefix from, so the last
+        # one they browsed under is remembered here.
+        ("lang", "ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'"),
     ]:
         if column not in existing_user_cols:
             await conn.execute(ddl)
@@ -233,6 +237,7 @@ def _row_to_user(row: aiosqlite.Row) -> User:
         stripe_customer_id=row["stripe_customer_id"],
         stripe_subscription_id=row["stripe_subscription_id"],
         plan_renews_at=row["plan_renews_at"],
+        lang=row["lang"],
     )
 
 
@@ -259,6 +264,12 @@ async def get_user(user_id: int) -> User | None:
     async with conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cur:
         row = await cur.fetchone()
     return _row_to_user(row) if row else None
+
+
+async def set_user_lang(user_id: int, lang: str) -> None:
+    conn = _conn()
+    await conn.execute("UPDATE users SET lang = ? WHERE id = ?", (lang, user_id))
+    await conn.commit()
 
 
 async def get_user_by_stripe_customer(customer_id: str) -> User | None:

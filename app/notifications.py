@@ -5,8 +5,9 @@ import os
 
 import httpx
 
-from app import surfaces
-from app.templates import templates
+from app import i18n, surfaces
+from app.i18n import N_
+from app.templates import _install_language, templates
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +58,17 @@ def absolute_url(path: str, surface=None) -> str | None:
     return f"{base}/{path.lstrip('/')}"
 
 
+# Marked where they are written, translated at send time — see N_ in app/i18n.py.
 _STATUS_SUBJECTS = {
-    "completed": "Crawl finished",
+    "completed": N_("Crawl finished"),
     "failed": "Crawl failed",
-    "cancelled": "Crawl stopped",
+    "cancelled": N_("Crawl stopped"),
 }
+
+
+def _num(value: int, lang: str) -> str:
+    """Grouped for the reader, not the developer — the same rule the pages use."""
+    return i18n.format_number(value or 0, lang)
 
 
 def _fmt(n: int) -> str:
@@ -80,7 +87,7 @@ def email_configured() -> bool:
     return bool(MAILGUN_API_KEY and MAILGUN_DOMAIN)
 
 
-async def _send_email(to_email: str, subject: str, surface=None, **context) -> None:
+async def _send_email(to_email: str, subject: str, surface=None, lang: str = i18n.DEFAULT_LANG, **context) -> None:
     if not email_configured():
         # Logged rather than returning in silence: "the email never arrived" is
         # otherwise indistinguishable from "the email was never attempted", and
@@ -92,6 +99,9 @@ async def _send_email(to_email: str, subject: str, surface=None, **context) -> N
         return
 
     surface = surface or surfaces.DEFAULT
+    # One Jinja environment serves every language, so the catalogue is bound
+    # immediately before rendering rather than once at import.
+    _install_language(lang)
     html = templates.env.get_template("email_notification.html").render(
         logo_url=absolute_url("/static/brand/logo-email.png", surface),
         product_name=surface.name,
@@ -140,6 +150,7 @@ async def send_crawl_notification(
     detected_cms: str | None = None,
     confidence: str | None = None,
     surface=None,
+    lang: str = i18n.DEFAULT_LANG,
     duration_seconds: int = 0,
     crawl_concurrency: int = 0,
     is_pro: bool = False,
@@ -148,7 +159,8 @@ async def send_crawl_notification(
     from app.promos import email_promo
 
     surface = surface or surfaces.DEFAULT
-    heading = _STATUS_SUBJECTS.get(status, "Crawl update")
+    _ = i18n.gettext_for(lang)
+    heading = _(_STATUS_SUBJECTS.get(status, N_("Crawl update")))
     completed = status == "completed"
 
     # At most one, and only when it's true of this crawl — see app/promos.py.
@@ -171,26 +183,26 @@ async def send_crawl_notification(
     notice = None
 
     if completed:
-        intro_text = "Your crawl finished. Here's what it counted."
-        hero_stats = [(_fmt(total_words), "Total words"), (_fmt(page_count), "Pages counted")]
+        intro_text = _("Your crawl finished. Here's what it counted.")
+        hero_stats = [(_num(total_words, lang), _("Total words")), (_num(page_count, lang), _("Pages counted"))]
         if detected_cms:
-            stats.append(("Detected platform", detected_cms))
+            stats.append((_("Detected platform"), detected_cms))
         if confidence:
-            stats.append(("Estimate confidence", confidence.capitalize()))
+            stats.append((_("Estimate confidence"), _(confidence.capitalize())))
     elif status == "cancelled":
-        intro_text = "This crawl was stopped before it finished, so the report shows partial results."
-        hero_stats = [(_fmt(total_words), "Words so far"), (_fmt(page_count), "Pages so far")]
+        intro_text = _("This crawl was stopped before it finished, so the report shows partial results.")
+        hero_stats = [(_num(total_words, lang), _("Words so far")), (_num(page_count, lang), _("Pages so far"))]
         if error:
             notice = error
     else:
-        intro_text = "This crawl couldn't be completed."
-        notice = error or "No further detail was recorded."
+        intro_text = _("This crawl couldn't be completed.")
+        notice = error or _("No further detail was recorded.")
 
     await _send_email(
         to_email,
         subject=f"{heading}: {source_url}",
         preheader=(
-            f"{_fmt(total_words)} words across {_fmt(page_count)} pages"
+            _("%(words)s words across %(pages)s pages") % {"words": _num(total_words, lang), "pages": _num(page_count, lang)}
             if completed
             else intro_text
         ),
@@ -204,9 +216,10 @@ async def send_crawl_notification(
         promo=_absolute_promo_logo(promo, surface),
         pricing_url=absolute_url("/pricing", surface),
         cta_url=absolute_url(f"/crawl/{run_id}", surface),
-        cta_label="View full report",
-        footer_note=f"You're getting this because you started this crawl on {surface.name}.",
+        cta_label=_("View full report"),
+        footer_note=_("You're getting this because you started this crawl on %(product)s.") % {"product": _(surface.name)},
         surface=surface,
+        lang=lang,
     )
 
 
@@ -219,21 +232,23 @@ async def send_share_notification(
     page_count: int | None = None,
     surface=None,
     detected_cms: str | None = None,
+    lang: str = i18n.DEFAULT_LANG,
 ) -> None:
     from app.promos import share_email_promo
 
+    _ = i18n.gettext_for(lang)
     surface = surface or surfaces.DEFAULT
     hero_stats = []
     if total_words is not None and page_count is not None:
-        hero_stats = [(_fmt(total_words), "Total words"), (_fmt(page_count), "Pages counted")]
+        hero_stats = [(_num(total_words, lang), _("Total words")), (_num(page_count, lang), _("Pages counted"))]
 
     await _send_email(
         to_email,
-        subject=f"{shared_by} shared a word-count report with you",
-        preheader=f"A word count for {source_url}",
-        heading=f"{shared_by} shared a report with you",
+        subject=_("%(person)s shared a word-count report with you") % {"person": shared_by},
+        preheader=_("A word count for %(site)s") % {"site": source_url},
+        heading=_("%(person)s shared a report with you") % {"person": shared_by},
         subheading=source_url,
-        intro_text="They ran a word count on this site and gave you access to the full report.",
+        intro_text=_("They ran a word count on this site and gave you access to the full report."),
         hero_stats=hero_stats,
         stats=[],
         # The recipient isn't a user, which is exactly who this pitch is for.
@@ -241,9 +256,10 @@ async def send_share_notification(
             share_email_promo(source_url, total_words, surface, detected_cms), surface),
         pricing_url=absolute_url("/pricing", surface),
         cta_url=share_url,
-        cta_label="View report",
-        footer_note=f"You're getting this because someone shared a {surface.name} report with you.",
+        cta_label=_("View report"),
+        footer_note=_("You're getting this because someone shared a %(product)s report with you.") % {"product": _(surface.name)},
         surface=surface,
+        lang=lang,
     )
 
 
