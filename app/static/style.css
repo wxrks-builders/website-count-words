@@ -783,6 +783,46 @@ ul.recent-runs a.run-row:hover { background: #FCFBF8; text-decoration: none; }
 }
 .header-actions #share-btn { gap: 9px; height: 38px; padding: 0 20px; font-size: 13px; }
 .header-actions #share-btn svg { width: 15px; height: 15px; }
+
+/* The Export and ⋯ menus — same panel the header's other menus use, because
+   they are the same kind of thing. */
+.action-menu { position: relative; }
+.action-menu > button svg { width: 14px; height: 14px; margin-inline-end: 7px; }
+.action-menu > button.action-dots { padding: 0 13px; font-size: 16px; letter-spacing: 1px; }
+.action-menu-list {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 208px;
+  padding: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(25, 23, 18, 0.12);
+}
+.action-menu-list button[role="menuitem"] {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+  text-align: start;
+  cursor: pointer;
+}
+.action-menu-list button[role="menuitem"]:hover { background: var(--bg); }
+.action-menu-list button.menu-danger { color: var(--danger-text); }
+.action-menu-list button.menu-danger:hover { background: var(--danger-bg); }
+
+/* A details whose summary lives elsewhere: the ⋯ menu drives .open, so the
+   summary is hidden and only the panel ever shows. */
+.run-disclosure-headless > summary { display: none; }
+.run-disclosure-headless { flex: 1 1 100%; }
 .run-date-line { font-size: 13px; color: var(--muted); margin: 0; }
 
 .settings-applied {

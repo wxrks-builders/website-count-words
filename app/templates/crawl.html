@@ -2,16 +2,29 @@
 {% block title %}{{ source_url }} — {{ surface.name }}{% endblock %}
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block body %}
+  {% include "_topbar.html" %}
+
   <div class="report-wrap report-header">
     <a href="/">← New crawl</a>
     <div class="title-row">
       <h1>{{ source_url }}</h1>
       <div class="header-actions">
-        <button type="button" id="export-csv-btn" class="secondary">{{ _('Export CSV') }}</button>
-        {# Shown on a shared report too — it's one of the report's exports, and
-           withholding it there made a shared link only half the report. #}
-        <button type="button" id="markdown-btn" class="secondary" style="display:none;"></button>
-        <button type="button" id="print-btn" class="secondary">{{ _('Print report') }}</button>
+        {# Option A from the canvas: one Export menu instead of three buttons,
+           so a fifth export never widens the header again. The ids inside are
+           unchanged — the existing handlers bind to them. #}
+        <div class="action-menu" data-menu>
+          <button type="button" class="secondary" data-menu-button
+                  aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"></path></svg>
+            {{ _('Export') }} ▾
+          </button>
+          <div class="action-menu-list" role="menu" data-menu-panel hidden>
+            <button type="button" role="menuitem" id="export-csv-btn">{{ _('Export CSV') }}</button>
+            {# Label and visibility are set by applyMarkdown() in app.js, as before. #}
+            <button type="button" role="menuitem" id="markdown-btn" style="display:none;"></button>
+            <button type="button" role="menuitem" id="print-btn">{{ _('Print report') }}</button>
+          </div>
+        </div>
         {% if mode != "shared" %}
         <button type="button" id="share-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -21,8 +34,19 @@
             <line x1="8.6" y1="10.5" x2="15.4" y2="6.5"></line>
             <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line>
           </svg>
-          Share results
+          {{ _('Share results') }}
         </button>
+        {# Delete can't be undone and Re-crawl is occasional: neither earns a
+           button of its own, and the dots give Delete a home away from the
+           actions people use daily. #}
+        <div class="action-menu" data-menu>
+          <button type="button" class="secondary action-dots" data-menu-button
+                  aria-haspopup="true" aria-expanded="false" title="{{ _('More actions') }}">⋯</button>
+          <div class="action-menu-list" role="menu" data-menu-panel hidden>
+            <button type="button" role="menuitem" id="recrawl-open-btn">{{ _('Re-crawl') }}…</button>
+            <button type="button" role="menuitem" id="delete-btn" class="menu-danger" style="display:none;">{{ _('Delete run') }}</button>
+          </div>
+        </div>
         {% endif %}
       </div>
     </div>
@@ -96,11 +120,13 @@
 
       <button id="cancel-btn" class="danger-outline" style="display:none;">{{ _('Cancel crawl') }}</button>
 
-      {# Scope, exclusions and Markdown are almost never changed on a re-crawl —
-         you look at the number and occasionally run it again the same way. They
-         sit behind the button that uses them, which costs one click on the rare
-         path and gives the row back on the common one. #}
-      <details class="run-disclosure" id="recrawl-disclosure">
+      {% if mode != "shared" %}
+      {# Opened from the ⋯ menu in the header rather than a chip of its own —
+         the summary is hidden and details.open is driven from there. The form
+         stays down here because its tag input and options would never fit in a
+         dropdown. Anonymous viewers never see it: a re-crawl needs an account
+         to belong to. #}
+      <details class="run-disclosure run-disclosure-headless" id="recrawl-disclosure">
         <summary class="run-chip run-chip-action">{{ _('Re-crawl') }}</summary>
         <form id="recrawl-form">
           <select id="recrawl-domain-scope" title="{{ _('Which pages count as part of this site?') }}">
@@ -120,9 +146,6 @@
         </form>
       </details>
 
-      {% if mode != "shared" %}
-      {# Kept away from the header actions on purpose — this one can't be undone. #}
-      <button type="button" id="delete-btn" class="danger-outline" style="display:none;">{{ _('Delete run') }}</button>
       {% endif %}
     </div>
 

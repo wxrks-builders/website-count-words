@@ -573,3 +573,46 @@ def test_the_offer_cannot_be_dismissed(app_env):
         assert "promo-wxrks" in body, url
         assert "promo-dismiss" not in body, url
         assert "data-promo-dismiss" not in body, url
+
+
+# ------------------------------------------------------------- report header
+
+def test_the_report_header_carries_the_topbar(app_env):
+    """The report page never had one, which is why the language menu and the
+    account chip vanished the moment a crawl was opened."""
+    save(app_env)
+    html = app_env.client.get("/crawl/r", headers=counter_host(app_env)).text
+    assert 'class="lang-menu"' in html
+    assert "user-chip" in html
+
+
+def test_exports_fold_into_one_menu_with_their_old_ids(app_env):
+    """Option A: the ids inside are unchanged, so the existing JS handlers bind
+    without knowing the markup moved."""
+    save(app_env)
+    html = app_env.client.get("/crawl/r", headers=counter_host(app_env)).text
+    for el_id in ("export-csv-btn", "markdown-btn", "print-btn"):
+        assert html.count(f'id="{el_id}"') == 1, el_id
+    assert "action-menu-list" in html
+
+
+def test_delete_and_recrawl_live_behind_the_dots(app_env):
+    save(app_env)
+    html = app_env.client.get("/crawl/r", headers=counter_host(app_env)).text
+    assert html.count('id="delete-btn"') == 1, "a duplicate id binds the handler to the wrong one"
+    assert 'id="recrawl-open-btn"' in html
+    assert "run-disclosure-headless" in html, "the form stays full-width below, opened from the menu"
+
+
+def test_a_shared_report_gets_no_owner_actions_but_keeps_its_exports(app_env):
+    save(app_env)
+    run(app_env.db.set_run_public("r", True))
+    app_env.current["user"] = None
+    del app_env.main.app.dependency_overrides[
+        __import__("app.auth", fromlist=["get_current_user"]).get_current_user
+    ]
+    html = app_env.client.get("/share/r", headers=counter_host(app_env)).text
+    assert "action-dots" not in html
+    assert "recrawl-disclosure" not in html, "an anonymous re-crawl has no account to belong to"
+    assert "export-csv-btn" in html, "exports are part of the report being shared"
+    assert 'class="lang-menu"' in html

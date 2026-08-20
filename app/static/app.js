@@ -1290,6 +1290,20 @@ function initCrawlPage(opts) {
     cancelBtn.style.display = "";
   }
 
+  // "Re-crawl…" in the header's ⋯ menu opens the options form down in the run
+  // bar — the form keeps its full width and its tag input, which would never
+  // fit inside a dropdown.
+  const recrawlOpenBtn = document.getElementById("recrawl-open-btn");
+  const recrawlDisclosure = document.getElementById("recrawl-disclosure");
+  if (recrawlOpenBtn && recrawlDisclosure) {
+    recrawlOpenBtn.addEventListener("click", () => {
+      recrawlDisclosure.open = !recrawlDisclosure.open;
+      if (recrawlDisclosure.open) {
+        recrawlDisclosure.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }
+
   proceedBtn.addEventListener("click", async () => {
     proceedBtn.disabled = true;
     proceedBtn.textContent = "Resuming…";
