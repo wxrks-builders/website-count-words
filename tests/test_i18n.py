@@ -236,3 +236,57 @@ class TestEmailsFollowTheirReader:
 
         assert _num(662431, "en") == "662,431"
         assert _num(662431, "de") == "662.431"
+
+
+class TestNothingLeaksMarkup:
+    def test_the_home_pitch_bolds_the_number_rather_than_printing_tags(self, i18n_client, monkeypatch):
+        """newstyle gettext escapes interpolated values, so markup has to be
+        marked safe on the parameter — |safe on the result arrives too late and
+        blesses text that already reads '&lt;strong&gt;'."""
+        import asyncio
+
+        import app.db as db
+        import app.main as main
+        from app.auth import get_current_user, require_user, require_user_api
+        from app.models import PageResult, User
+
+        u = User(id=1, google_sub="a", email="o@x.c", name="R")
+        for dep in (require_user, require_user_api, get_current_user):
+            main.app.dependency_overrides[dep] = lambda: u
+
+        def run(coro):
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(coro)
+            finally:
+                loop.close()
+
+        run(db.get_or_create_user("a", "o@x.c", "R", None))
+        run(db.save_run(run_id="r", source_url="https://wxrks.com", user_id=1,
+                        status="completed", total_words=1_076_780,
+                        pages=[PageResult(url="https://wxrks.com/a", word_count=1076780)],
+                        limit_reached=False))
+        html = i18n_client.get("/").text
+        main.app.dependency_overrides.clear()
+        assert "&lt;strong&gt;" not in html
+        assert "<strong>" in html
+
+
+class TestAssetsBustTheCache:
+    def test_static_references_carry_a_version(self, i18n_client):
+        """Browsers cache /static and nothing ever told them a deploy happened,
+        so every deploy shipped new HTML against week-old CSS and JS — which is
+        how a new menu renders as an unstyled button that won't open."""
+        html = i18n_client.get("/login").text
+        assert "style.css?v=" in html
+        assert "app.js?v=" in html
+
+    def test_the_version_changes_when_the_files_do(self, tmp_path, monkeypatch):
+        from app import templates as t
+
+        monkeypatch.setattr(t, "_STATIC_DIR", tmp_path)
+        (tmp_path / "style.css").write_text("a{}")
+        (tmp_path / "app.js").write_text("//1")
+        first = t._asset_version()
+        (tmp_path / "app.js").write_text("//2")
+        assert t._asset_version() != first

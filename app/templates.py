@@ -4,6 +4,34 @@ from starlette.requests import Request
 from app import i18n, js_strings, surfaces
 
 
+import hashlib as _hashlib
+from pathlib import Path as _Path
+
+_STATIC_DIR = _Path(__file__).resolve().parent / "static"
+
+
+def _asset_version() -> str:
+    """A short fingerprint of the static assets, computed once per process.
+
+    Browsers cache /static aggressively and nothing ever told them a deploy
+    happened — so every deploy so far has shipped new HTML against whatever
+    CSS and JS the visitor already had. New markup with week-old styles is
+    exactly how "the menu renders as an unstyled green button and won't open"
+    happens. The query string changes when the files do, which is the whole
+    cache key.
+    """
+    digest = _hashlib.blake2b(digest_size=6)
+    for name in ("style.css", "app.js"):
+        try:
+            digest.update((_STATIC_DIR / name).read_bytes())
+        except OSError:
+            pass
+    return digest.hexdigest()
+
+
+ASSET_VERSION = _asset_version()
+
+
 def _globals(request: Request) -> dict:
     """Puts the request's surface, and whether billing exists at all, into every
     template.
@@ -61,6 +89,7 @@ def _globals(request: Request) -> dict:
         ],
         "num": lambda value: i18n.format_number(value or 0, lang),
         "js_strings": js_strings.catalogue(lang),
+        "asset_v": ASSET_VERSION,
     }
 
 

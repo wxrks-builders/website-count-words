@@ -64,7 +64,10 @@
         {%- if p.logo_url %}
         <span class="promo-logo"><img src="{{ p.logo_url }}" alt="{{ p.cms }}" width="16" height="16"></span>
         {%- endif %}
-        {{ _('Your last crawl of %(domain)s found %(words)s words.', domain=p.domain, words='<strong>' ~ num(p.total_words) ~ '</strong>') | safe }}
+        {# The markup is marked safe on the PARAMETER: newstyle gettext escapes
+           interpolated values, so |safe on the result arrives too late — it
+           blesses text that already reads '&lt;strong&gt;'. #}
+        {{ _('Your last crawl of %(domain)s found %(words)s words.', domain=p.domain, words=('<strong>' ~ num(p.total_words) ~ '</strong>') | safe) }}
       </p>
       <p class="promo-body">
         {%- if p.cms %}
@@ -80,7 +83,7 @@
     {% endif %}
   </div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v={{ asset_v }}"></script>
   <script>
     initUserMenu();
     initBilling();

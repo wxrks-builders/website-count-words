@@ -607,8 +607,12 @@ button.tag-remove:hover { background: none; opacity: 1; }
 .login-screen {
   min-height: 100vh;
   display: flex;
+  /* Column, because the language menu sits under the card — as a row they
+     rendered side by side, the menu floating oddly next to the sign-in box. */
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 22px;
   background-color: var(--bg);
   background-image: radial-gradient(#E6E3D8 1px, transparent 1px);
   background-size: 24px 24px;
@@ -1404,3 +1408,5 @@ a.lang-option.is-current .lang-option-code { color: var(--brand); }
 /* On the signed-out pages the control sits beside a Sign in button rather than
    an account chip; it needs no other treatment. */
 .landing .lang-menu, .login-screen .lang-menu { flex-shrink: 0; }
+.login-screen .lang-menu-list { inset-inline-end: auto; inset-inline-start: 50%; transform: translateX(-50%); }
+[dir="rtl"] .login-screen .lang-menu-list { transform: translateX(50%); }
