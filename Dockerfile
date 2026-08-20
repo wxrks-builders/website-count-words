@@ -14,6 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY . .
 
+# .mo files are build output, so they are compiled here rather than committed.
+# A language whose catalogue is still untranslated compiles to an empty one and
+# renders English, which is what makes it safe to deploy a partial translation.
+RUN pybabel compile -d locales || true
+
 ENV PYTHONUNBUFFERED=1
 
 # $PORT is honoured if the host injects one, defaulting to 8000 otherwise.

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Pricing — {{ surface.name }}{% endblock %}
+{% block title %}{{ _('Pricing') }} — {{ _(surface.name) }}{% endblock %}
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block body %}
   {# The topbar assumes a signed-in user; this page is public, so signed-out
@@ -8,17 +8,17 @@
     {% include "_topbar.html" %}
   {% else %}
     <header class="topbar">
-      <a class="logo" href="/">
+      <a class="logo" href="{{ url('/') }}">
         <img class="logo-img" src="/static/brand/logo.svg" alt="wxrks" width="123" height="28">
         <span class="logo-sep"></span>
-        <span class="logo-name">{{ surface.name }}</span>
+        <span class="logo-name">{{ _(surface.name) }}</span>
       </a>
-      <a class="button secondary" href="/login">Sign in</a>
+      <a class="button secondary" href="{{ url('/login') }}">{{ _('Sign in') }}</a>
     </header>
   {% endif %}
 
   <div class="page-wrap">
-    <h1 class="pricing-title">The only thing that changes is how long you wait.</h1>
+    <h1 class="pricing-title">{{ _('The only thing that changes is how long you wait.') }}</h1>
     <p class="subtitle pricing-lede">
       Same crawler, same counting, same reports. Pro fetches
       <strong>{{ pro_concurrency }}</strong> pages at once instead of
@@ -29,51 +29,45 @@
 
     <div class="plan-grid">
       <div class="plan-card">
-        <div class="section-label">Free</div>
+        <div class="section-label">{{ _('Free') }}</div>
         <div class="plan-price">£0</div>
         <ul class="plan-features">
-          <li>{{ free_concurrency }} pages at a time</li>
-          <li>Unlimited crawls, unlimited pages</li>
-          <li>CSV export, Markdown ZIP, shareable reports</li>
-          <li>Waits its turn when the server is busy</li>
+          <li>{{ _('%(n)s pages at a time', n=free_concurrency) }}</li>
+          <li>{{ _('Unlimited crawls, unlimited pages') }}</li>
+          <li>{{ _('CSV export, Markdown ZIP, shareable reports') }}</li>
+          <li>{{ _('Waits its turn when the server is busy') }}</li>
         </ul>
-        {% if user and not user.is_pro %}<p class="muted plan-current">Your current plan</p>{% endif %}
+        {% if user and not user.is_pro %}<p class="muted plan-current">{{ _('Your current plan') }}</p>{% endif %}
       </div>
 
       <div class="plan-card plan-card-pro">
-        <div class="section-label">Pro</div>
-        <div class="plan-price">about {{ speedup }}× faster</div>
+        <div class="section-label">{{ _('Pro') }}</div>
+        <div class="plan-price">{{ _('about %(n)s× faster', n=speedup) }}</div>
         <ul class="plan-features">
-          <li><strong>{{ pro_concurrency }} pages at a time</strong></li>
-          <li>Skips the queue when crawls are waiting</li>
-          <li>Everything in Free</li>
-          <li>Cancel anytime, from your billing page</li>
+          <li><strong>{{ _('%(n)s pages at a time', n=pro_concurrency) }}</strong></li>
+          <li>{{ _('Skips the queue when crawls are waiting') }}</li>
+          <li>{{ _('Everything in Free') }}</li>
+          <li>{{ _('Cancel anytime, from your billing page') }}</li>
         </ul>
         {% if user and user.is_pro %}
-          <p class="muted plan-current">Your current plan{% if user.plan_renews_at %} · renews <span class="run-date-iso" data-iso="{{ user.plan_renews_at }}"></span>{% endif %}</p>
-          <button type="button" class="secondary" data-billing-portal>Manage subscription</button>
+          <p class="muted plan-current">{{ _('Your current plan') }}{% if user.plan_renews_at %} · {{ _('renews') }} <span class="run-date-iso" data-iso="{{ user.plan_renews_at }}"></span>{% endif %}</p>
+          <button type="button" class="secondary" data-billing-portal>{{ _('Manage subscription') }}</button>
         {% elif user %}
-          <button type="button" id="upgrade-btn">Upgrade to Pro</button>
+          <button type="button" id="upgrade-btn">{{ _('Upgrade to Pro') }}</button>
         {% else %}
           {# Checkout needs an account to attach the subscription to, so send
              them through sign-in rather than to a button that 401s. #}
-          <a class="button" href="/login">Sign in to upgrade</a>
+          <a class="button" href="{{ url('/login') }}">{{ _('Sign in to upgrade') }}</a>
         {% endif %}
         <p class="field-error" id="billing-error" style="display:none;"></p>
       </div>
     </div>
 
     <p class="muted pricing-fineprint">
-      About “{{ speedup }}× faster” is measured, not arithmetic. Pro fetches
-      {{ (pro_concurrency / free_concurrency) | round | int }}× as many pages at
-      once, but fetching is only part of the work — every page is also rendered
-      and its text extracted, and that competes for CPU. The honest number is
-      the smaller one.
+      {{ _('About “%(n)s× faster” is measured, not arithmetic. Pro fetches %(raw)s× as many pages at once, but fetching is only part of the work — every page is also rendered and its text extracted, and that competes for CPU. The honest number is the smaller one.', n=speedup, raw=(pro_concurrency / free_concurrency) | round | int) }}
     </p>
     <p class="muted pricing-fineprint">
-      It also assumes this app is what's slowing you down. A site that
-      rate-limits or blocks a heavier crawler caps every plan at the same place;
-      the report marks those pages, so you can see when that's what happened.
+      {{ _('It also assumes this app is what\'s slowing you down. A site that rate-limits or blocks a heavier crawler caps every plan at the same place; the report marks those pages, so you can see when that\'s what happened.') }}
     </p>
   </div>
 

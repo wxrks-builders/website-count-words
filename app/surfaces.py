@@ -19,6 +19,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from app.i18n import N_
+
 
 @dataclass(frozen=True)
 class Surface:
@@ -48,39 +50,47 @@ class Surface:
 COUNTER = Surface(
     key="counter",
     host=os.environ.get("COUNTER_HOST", "wordcounter.wxrks.app"),
-    name="Word Counter",
-    tagline="Count every word on a website",
-    headline="Nobody knows how many words are on their website.",
-    lede=(
+    name=N_("Word Counter"),
+    tagline=N_("Count every word on a website"),
+    headline=N_("Nobody knows how many words are on their website."),
+    lede=N_(
         "Not the marketing lead, not the person who built it, and not the agency about to "
         "quote you for translating it. Point this at a URL and find out — page by page, "
         "folder by folder."
     ),
     points=[
         (
-            "Built for translation quotes",
-            "Translation is priced per word, so the first question is one most site owners "
+            N_("Built for translation quotes"),
+            N_(
+                "Translation is priced per word, so the first question is one most site owners "
             "can only guess at. Guessing wrong by a factor of three is a budget that runs "
-            "out halfway through.",
+            "out halfway through."
+            ),
         ),
         (
-            "It counts what a translator is handed",
-            "Navigation, footers, sidebars and forms are stripped before counting, so a "
-            "500-page site doesn't inflate by the same menu repeated 500 times.",
+            N_("It counts what a translator is handed"),
+            N_(
+                "Navigation, footers, sidebars and forms are stripped before counting, so a "
+            "500-page site doesn't inflate by the same menu repeated 500 times."
+            ),
         ),
         (
-            "It sees pages the way a reader does",
-            "Every page is rendered in a real browser, so content built by JavaScript is "
-            "counted. Tools that only fetch HTML report a fraction of the truth.",
+            N_("It sees pages the way a reader does"),
+            N_(
+                "Every page is rendered in a real browser, so content built by JavaScript is "
+            "counted. Tools that only fetch HTML report a fraction of the truth."
+            ),
         ),
         (
-            "Broken down where it's useful",
-            "Totals per folder and per page, your longest pages ranked, and a CSV of every "
-            "URL — so a quote turns into a plan you can phase.",
+            N_("Broken down where it's useful"),
+            N_(
+                "Totals per folder and per page, your longest pages ranked, and a CSV of every "
+            "URL — so a quote turns into a plan you can phase."
+            ),
         ),
     ],
-    demo_label="See a real report",
-    description=(
+    demo_label=N_("See a real report"),
+    description=N_(
         "Crawl any website and count every word — per page, per folder, in total. Built for "
         "sizing translation projects, with CSV export and a shareable report."
     ),
@@ -93,41 +103,49 @@ COUNTER = Surface(
 MARKDOWN = Surface(
     key="markdown",
     host=os.environ.get("MARKDOWN_HOST", "markdown.wxrks.app"),
-    name="Site to Markdown",
-    tagline="Turn any website into clean Markdown",
-    headline="Your website, as clean text a language model can actually read.",
-    lede=(
+    name=N_("Site to Markdown"),
+    tagline=N_("Turn any website into clean Markdown"),
+    headline=N_("Your website, as clean text a language model can actually read."),
+    lede=N_(
         "Point this at a URL and get every page back as Markdown, in one ZIP — main content "
         "only, no navigation, no cookie banners, no markup burning tokens without carrying "
         "meaning."
     ),
     points=[
         (
-            "Main content, not the whole page",
-            "Each page runs through a content filter that drops navigation and repeated "
+            N_("Main content, not the whole page"),
+            N_(
+                "Each page runs through a content filter that drops navigation and repeated "
             "chrome. That's the difference between a corpus you can search and one where "
-            "every document matches the phrase “Book Now”.",
+            "every document matches the phrase “Book Now”."
+            ),
         ),
         (
-            "One file per page, provenance intact",
-            "Every file opens with the URL it came from, so nothing loses its source on the "
-            "way into a retrieval pipeline.",
+            N_("One file per page, provenance intact"),
+            N_(
+                "Every file opens with the URL it came from, so nothing loses its source on the "
+            "way into a retrieval pipeline."
+            ),
         ),
         (
-            "The token arithmetic is the argument",
-            "English runs near 1.3 tokens per word. A 662,000-word site is about 880,000 "
+            N_("The token arithmetic is the argument"),
+            N_(
+                "English runs near 1.3 tokens per word. A 662,000-word site is about 880,000 "
             "tokens of clean text — as raw HTML it would be several times that, nearly all "
-            "of it markup.",
+            "of it markup."
+            ),
         ),
         (
-            "Ready for whatever comes next",
-            "Ground a support assistant in your own answers, audit content at a scale nobody "
+            N_("Ready for whatever comes next"),
+            N_(
+                "Ground a support assistant in your own answers, audit content at a scale nobody "
             "can read, brief translators with real terminology, or move platforms without "
-            "losing the writing.",
+            "losing the writing."
+            ),
         ),
     ],
-    demo_label="See what comes out",
-    description=(
+    demo_label=N_("See what comes out"),
+    description=N_(
         "Crawl any website and export every page as clean Markdown in a single ZIP. Main "
         "content only — ready to feed a language model, a RAG pipeline or a CMS migration."
     ),

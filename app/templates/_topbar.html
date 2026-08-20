@@ -1,5 +1,5 @@
 <header class="topbar">
-  <a class="logo" href="/">
+  <a class="logo" href="{{ url('/') }}">
     <img class="logo-img" src="/static/brand/logo.svg" alt="wxrks" width="123" height="28">
     <span class="logo-sep"></span>
     <span class="logo-name">{{ surface.name }}</span>
@@ -13,7 +13,7 @@
     <button type="button" class="user-chip" aria-haspopup="true" aria-expanded="false" aria-controls="user-menu-list">
       {% if user.picture %}<img src="{{ user.picture }}" alt="">{% else %}<span class="avatar">{{ user.name[0] | upper }}</span>{% endif %}
       <span class="name">{{ user.name }}</span>
-      {% if billing_enabled and user.is_pro %}<span class="plan-pill">Pro</span>{% endif %}
+      {% if billing_enabled and user.is_pro %}<span class="plan-pill" title="{{ _('Crawls run at full speed') }}">{{ _('Pro') }}</span>{% endif %}
       <span class="chev" aria-hidden="true">▾</span>
     </button>
 
@@ -23,15 +23,15 @@
         <div class="user-menu-email">{{ user.email }}</div>
       </div>
 
-      <a role="menuitem" href="/">New crawl</a>
-      <a role="menuitem" href="/runs">Your runs</a>
+      <a role="menuitem" href="{{ url('/') }}">{{ _('New crawl') }}</a>
+      <a role="menuitem" href="{{ url('/runs') }}">{{ _('Your runs') }}</a>
 
       {% if billing_enabled %}
         <div class="user-menu-sep"></div>
         {% if user.is_pro %}
-          <a role="menuitem" href="#" data-billing-portal>Manage billing</a>
+          <a role="menuitem" href="#" data-billing-portal>{{ _('Manage billing') }}</a>
         {% else %}
-          <a role="menuitem" href="/pricing" class="upgrade-link">Upgrade to Pro</a>
+          <a role="menuitem" href="{{ url('/pricing') }}" class="upgrade-link">{{ _('Upgrade to Pro') }}</a>
         {% endif %}
       {% endif %}
 
@@ -47,7 +47,7 @@
       {% endif %}
 
       <div class="user-menu-sep"></div>
-      <a role="menuitem" href="/logout">Log out</a>
+      <a role="menuitem" href="{{ url('/logout') }}">{{ _('Log out') }}</a>
     </div>
   </div>
 </header>

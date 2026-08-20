@@ -1,0 +1,648 @@
+# Spanish translations for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-20 10:38-0400\n"
+"PO-Revision-Date: 2026-08-20 10:34-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: es\n"
+"Language-Team: es <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#, python-format
+msgid "%(n)s pages at a time"
+msgstr ""
+
+#, python-format
+msgid "%(words)s words/min · %(pages)s pages/min"
+msgstr ""
+
+msgid "(root)"
+msgstr ""
+
+#, python-format
+msgid ""
+"About “%(n)s× faster” is measured, not arithmetic. Pro fetches %(raw)s× "
+"as many pages at once, but fetching is only part of the work — every page"
+" is also rendered and its text extracted, and that competes for CPU. The "
+"honest number is the smaller one."
+msgstr ""
+
+msgid "Add another…"
+msgstr ""
+
+msgid "Adjust settings"
+msgstr ""
+
+msgid "Advanced"
+msgstr ""
+
+msgid "All crawls"
+msgstr ""
+
+msgid "All your crawls"
+msgstr ""
+
+msgid "Also in here"
+msgstr ""
+
+msgid "Avg words / page"
+msgstr ""
+
+msgid "Blocked · host"
+msgstr ""
+
+msgid "Blocked · login"
+msgstr ""
+
+msgid "Broken down where it's useful"
+msgstr ""
+
+msgid "Built for translation quotes"
+msgstr ""
+
+msgid "Busy server load"
+msgstr ""
+
+msgid "By folder"
+msgstr ""
+
+msgid "By language"
+msgstr ""
+
+msgid "CSV export, Markdown ZIP, shareable reports"
+msgstr ""
+
+msgid "Cancel anytime, from your billing page"
+msgstr ""
+
+msgid "Cancel crawl"
+msgstr ""
+
+msgid "Cancel every active crawl on the server? This cannot be undone."
+msgstr ""
+
+msgid "Cancelled"
+msgstr ""
+
+msgid "Cancelling…"
+msgstr ""
+
+msgid ""
+"Comma-separated subdomains and folders to leave out. A leading / excludes"
+" a folder, anything else a subdomain."
+msgstr ""
+
+msgid "Completed"
+msgstr ""
+
+msgid "Copied"
+msgstr ""
+
+msgid "Copy link"
+msgstr ""
+
+msgid "Could not reach billing"
+msgstr ""
+
+msgid "Count every word on a website"
+msgstr ""
+
+msgid "Crawl"
+msgstr ""
+
+msgid ""
+"Crawl a website and count every word it contains — total, per page, per "
+"folder."
+msgstr ""
+
+msgid ""
+"Crawl any website and count every word — per page, per folder, in total. "
+"Built for sizing translation projects, with CSV export and a shareable "
+"report."
+msgstr ""
+
+msgid ""
+"Crawl any website and export every page as clean Markdown in a single "
+"ZIP. Main content only — ready to feed a language model, a RAG pipeline "
+"or a CMS migration."
+msgstr ""
+
+msgid "Crawling"
+msgstr ""
+
+msgid "Crawls run at full speed"
+msgstr ""
+
+msgid "Delete run"
+msgstr ""
+
+msgid "Delete this run and everything saved with it? This cannot be undone."
+msgstr ""
+
+msgid "Deleting…"
+msgstr ""
+
+#, python-format
+msgid "Detected platform: %(cms)s"
+msgstr ""
+
+msgid "Detected platform: Contentful (headless — sitemap conventions vary)"
+msgstr ""
+
+#, python-format
+msgid "Download Markdown (%(size)s)"
+msgstr ""
+
+msgid "Duplicates"
+msgstr ""
+
+msgid ""
+"Each page runs through a content filter that drops navigation and "
+"repeated chrome. That's the difference between a corpus you can search "
+"and one where every document matches the phrase “Book Now”."
+msgstr ""
+
+msgid "Easy server load"
+msgstr ""
+
+msgid ""
+"English runs near 1.3 tokens per word. A 662,000-word site is about "
+"880,000 tokens of clean text — as raw HTML it would be several times "
+"that, nearly all of it markup."
+msgstr ""
+
+msgid "Estimate — before you crawl"
+msgstr ""
+
+msgid "Estimated total"
+msgstr ""
+
+msgid "Estimated total pages"
+msgstr ""
+
+msgid "Estimated total time"
+msgstr ""
+
+msgid ""
+"Every crawl counts the words as it goes, so you get the size of the site "
+"alongside the content — total, per folder and per page. Useful the day "
+"somebody asks what it would cost to translate."
+msgstr ""
+
+msgid ""
+"Every file opens with the URL it came from, so nothing loses its source "
+"on the way into a retrieval pipeline."
+msgstr ""
+
+msgid ""
+"Every page is rendered in a real browser, so content built by JavaScript "
+"is counted. Tools that only fetch HTML report a fraction of the truth."
+msgstr ""
+
+msgid "Everything in Free"
+msgstr ""
+
+msgid "Exclude subdomains or folders"
+msgstr ""
+
+msgid "Exclude subdomains or folders before continuing"
+msgstr ""
+
+#, python-format
+msgid "Excluded: %(entries)s"
+msgstr ""
+
+msgid "Excluded: none"
+msgstr ""
+
+msgid "Export CSV"
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
+msgid "Folder"
+msgstr ""
+
+#, python-format
+msgid ""
+"Found a sitemap — this site has approximately %(pages)s pages. Crawling "
+"all of them may take a while."
+msgstr ""
+
+msgid "Free"
+msgstr ""
+
+msgid ""
+"Ground a support assistant in your own answers, audit content at a scale "
+"nobody can read, brief translators with real terminology, or move "
+"platforms without losing the writing."
+msgstr ""
+
+msgid "High confidence"
+msgstr ""
+
+msgid ""
+"It also assumes this app is what's slowing you down. A site that rate-"
+"limits or blocks a heavier crawler caps every plan at the same place; the"
+" report marks those pages, so you can see when that's what happened."
+msgstr ""
+
+msgid "It counts what a translator is handed"
+msgstr ""
+
+msgid "It sees pages the way a reader does"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+#, python-format
+msgid "Language: %(lang)s"
+msgstr ""
+
+#, python-format
+msgid "Language: %(lang)s (auto)"
+msgstr ""
+
+#, python-format
+msgid "Languages: %(primary)s + %(rest)s"
+msgstr ""
+
+msgid "Languages: All"
+msgstr ""
+
+msgid "Log out"
+msgstr ""
+
+msgid "Low confidence"
+msgstr ""
+
+msgid "Main content, not the whole page"
+msgstr ""
+
+msgid "Manage billing"
+msgstr ""
+
+msgid "Manage subscription"
+msgstr ""
+
+msgid "Markdown saved"
+msgstr ""
+
+msgid "Medium confidence"
+msgstr ""
+
+msgid "Moderate server load"
+msgstr ""
+
+msgid ""
+"Navigation, footers, sidebars and forms are stripped before counting, so "
+"a 500-page site doesn't inflate by the same menu repeated 500 times."
+msgstr ""
+
+msgid "New crawl"
+msgstr ""
+
+msgid "No crawls yet"
+msgstr ""
+
+msgid "No crawls yet — try one above."
+msgstr ""
+
+msgid "No pages counted yet."
+msgstr ""
+
+#, python-format
+msgid ""
+"No sitemap found — this estimate is based only on pages discovered so far"
+" (approximately %(pages)s), so it may be less accurate. Crawling all of "
+"them may take a while."
+msgstr ""
+
+msgid "Nobody knows how many words are on their website."
+msgstr ""
+
+msgid ""
+"Not the marketing lead, not the person who built it, and not the agency "
+"about to quote you for translating it. Point this at a URL and find out —"
+" page by page, folder by folder."
+msgstr ""
+
+msgid "Older →"
+msgstr ""
+
+msgid "One file per page, provenance intact"
+msgstr ""
+
+msgid "Opening checkout…"
+msgstr ""
+
+#, python-format
+msgid "Page %(page)s of %(total)s"
+msgstr ""
+
+msgid "Pages"
+msgstr ""
+
+msgid "Pages counted"
+msgstr ""
+
+msgid "Pages fetched so far"
+msgstr ""
+
+msgid ""
+"Pages that returned a login wall instead of real content — hidden from "
+"the list below and excluded from the word total"
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Please enter a valid http(s) URL"
+msgstr ""
+
+msgid ""
+"Point this at a URL and get every page back as Markdown, in one ZIP — "
+"main content only, no navigation, no cookie banners, no markup burning "
+"tokens without carrying meaning."
+msgstr ""
+
+msgid "Preparing…"
+msgstr ""
+
+msgid "Preview"
+msgstr ""
+
+msgid "Pricing"
+msgstr ""
+
+msgid "Print report"
+msgstr ""
+
+msgid "Pro"
+msgstr ""
+
+msgid "Proceed with crawl"
+msgstr ""
+
+msgid "Queued"
+msgstr ""
+
+msgid "Re-crawl"
+msgstr ""
+
+msgid "Ready for whatever comes next"
+msgstr ""
+
+#, python-format
+msgid "Remove %(entry)s"
+msgstr ""
+
+msgid "Resuming…"
+msgstr ""
+
+msgid "Save Markdown"
+msgstr ""
+
+msgid ""
+"Save each page's main content as Markdown, downloadable as a ZIP when the"
+" crawl finishes."
+msgstr ""
+
+msgid "See a real report"
+msgstr ""
+
+#, python-format
+msgid "See all %(n)s"
+msgstr ""
+
+#, python-format
+msgid "See the %(cms)s connector"
+msgstr ""
+
+msgid "See what comes out"
+msgstr ""
+
+msgid "See what that costs →"
+msgstr ""
+
+#, python-format
+msgid "Sent to %(email)s"
+msgstr ""
+
+msgid "Settings applied"
+msgstr ""
+
+msgid "Show all"
+msgstr ""
+
+msgid "Sign in"
+msgstr ""
+
+msgid "Sign in to point it at your own site."
+msgstr ""
+
+msgid "Sign in to upgrade"
+msgstr ""
+
+msgid "Sign in with Google"
+msgstr ""
+
+msgid "Sign in with Google. Nothing to install, nothing to configure."
+msgstr ""
+
+msgid "Site to Markdown"
+msgstr ""
+
+msgid "Skips the queue when crawls are waiting"
+msgstr ""
+
+msgid "Something went wrong"
+msgstr ""
+
+msgid "Start re-crawl"
+msgstr ""
+
+msgid "Start with your site"
+msgstr ""
+
+msgid "Starting…"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "The only thing that changes is how long you wait."
+msgstr ""
+
+msgid "The token arithmetic is the argument"
+msgstr ""
+
+#, python-format
+msgid ""
+"This crawl stalled — no page was fetched for over %(minutes)s minutes — "
+"and was stopped automatically."
+msgstr ""
+
+msgid "This crawl was cancelled — showing partial results."
+msgstr ""
+
+msgid ""
+"This crawl was paused for an estimate and never resumed — showing partial"
+" results from before the pause."
+msgstr ""
+
+msgid ""
+"This crawl was stopped automatically — it was using too much memory to "
+"continue safely on this server."
+msgstr ""
+
+msgid "This subdomain only"
+msgstr ""
+
+msgid ""
+"Tick one box before a crawl and every page is also saved as Markdown — "
+"main content only, no navigation — and handed back as a single ZIP. Ready"
+" to feed a language model, a search index or a CMS migration."
+msgstr ""
+
+msgid "Top pages by word count"
+msgstr ""
+
+msgid "Top-level domain only"
+msgstr ""
+
+msgid "Total words"
+msgstr ""
+
+msgid ""
+"Totals per folder and per page, your longest pages ranked, and a CSV of "
+"every URL — so a quote turns into a plan you can phase."
+msgstr ""
+
+msgid ""
+"Translation is priced per word, so the first question is one most site "
+"owners can only guess at. Guessing wrong by a factor of three is a budget"
+" that runs out halfway through."
+msgstr ""
+
+msgid "Turn any website into clean Markdown"
+msgstr ""
+
+msgid "Unlimited crawls, unlimited pages"
+msgstr ""
+
+msgid "Upgrade to Pro"
+msgstr ""
+
+msgid "Waits its turn when the server is busy"
+msgstr ""
+
+msgid "What that costs"
+msgstr ""
+
+msgid "Which pages count as part of this site?"
+msgstr ""
+
+msgid "Whole domain (incl. subdomains)"
+msgstr ""
+
+msgid "Word Counter"
+msgstr ""
+
+msgid "Words"
+msgstr ""
+
+#, python-format
+msgid "You're number %(n)s in the queue. It'll start on its own."
+msgstr ""
+
+msgid "Your current plan"
+msgstr ""
+
+#, python-format
+msgid "Your last crawl of %(domain)s found %(words)s words."
+msgstr ""
+
+msgid "Your recent runs"
+msgstr ""
+
+msgid "Your runs"
+msgstr ""
+
+msgid "Your website, as clean text a language model can actually read."
+msgstr ""
+
+msgid "a tool by wxrks"
+msgstr ""
+
+#, python-format
+msgid "about %(n)s× faster"
+msgstr ""
+
+#, python-format
+msgid "about %(time)s on Pro"
+msgstr ""
+
+msgid "folder"
+msgstr ""
+
+msgid "less than a minute"
+msgstr ""
+
+msgid "renews"
+msgstr ""
+
+msgid "staging, web-staging, /careers"
+msgstr ""
+
+msgid "start one"
+msgstr ""
+
+msgid "subdomain"
+msgstr ""
+
+#, python-format
+msgid ""
+"wxrks has a %(cms)s connector: it pulls your content straight from "
+"%(cms)s, translates it with the best AI models and keeps it in sync."
+msgstr ""
+
+msgid ""
+"wxrks pulls the content and translates it with the best AI models, then "
+"keeps it in sync as the site changes."
+msgstr ""
+
+#, python-format
+msgid "~%(h)sh"
+msgstr ""
+
+#, python-format
+msgid "~%(h)sh %(m)sm"
+msgstr ""
+
+#, python-format
+msgid "~%(n)s min"
+msgstr ""
+
+#, python-format
+msgid "— %(n)s crawled"
+msgstr ""
+
+msgid "← New crawl"
+msgstr ""
+
+msgid "← Newer"
+msgstr ""
+

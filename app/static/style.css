@@ -20,8 +20,13 @@
   --danger-text: #A02E1D;
   --blocked-row-bg: #FBF3E2;
   --folder-bar: #E7EFE9;
-  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* The CJK and Arabic faces are fallbacks, not downloads: neither webfont
+     above has glyphs for ja, ko, zh or ar, and every OS ships one that does. */
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Hiragino Sans',
+               'Yu Gothic UI', 'Malgun Gothic', 'Microsoft YaHei', 'Geeza Pro',
+               'Noto Sans Arabic', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Hiragino Sans', 'Yu Gothic UI',
+               'Malgun Gothic', 'Microsoft YaHei', monospace;
 }
 
 * { box-sizing: border-box; }
@@ -103,13 +108,13 @@ button.user-chip {
   gap: 8px;
 }
 button.user-chip:hover { background: var(--card); border-color: #B9B4A4; }
-.user-chip .chev { color: var(--muted); font-size: 10px; margin-left: 2px; }
+.user-chip .chev { color: var(--muted); font-size: 10px; margin-inline-start: 2px; }
 .user-menu.is-open .chev { transform: rotate(180deg); }
 
 .user-menu { position: relative; }
 .user-menu-list {
   position: absolute;
-  right: 0;
+  inset-inline-end: 0;
   top: calc(100% + 6px);
   z-index: 20;
   min-width: 232px;
@@ -197,7 +202,7 @@ input.language-input {
   font-size: 14px;
   font-family: var(--font-mono);
   background: var(--bg-input);
-  text-align: left;
+  text-align: start;
 }
 
 /* ---------- Buttons ---------- */
@@ -317,7 +322,7 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
   justify-content: center;
   width: 24px;
   height: 24px;
-  margin-right: 9px;
+  margin-inline-end: 9px;
   vertical-align: -6px;
   background: var(--promo-paper);
   border-radius: 6px;
@@ -354,7 +359,7 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
 .promo-preview {
   display: inline-block;
   vertical-align: middle;
-  margin-left: 8px;
+  margin-inline-start: 8px;
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--warn-bg);
@@ -416,7 +421,7 @@ button.danger-outline:hover { border-color: var(--danger-text); background: var(
   letter-spacing: -0.02em;
   margin: 10px 0 18px;
 }
-.plan-features { margin: 0 0 20px; padding-left: 18px; font-size: 14px; line-height: 1.9; color: var(--muted); }
+.plan-features { margin: 0 0 20px; padding-inline-start: 18px; font-size: 14px; line-height: 1.9; color: var(--muted); }
 .plan-features strong { color: var(--text); }
 .plan-current { font-size: 13px; margin: 0 0 12px; }
 
@@ -683,7 +688,7 @@ ul.recent-runs a.run-row {
   color: var(--text);
   text-decoration: none;
 }
-ul.recent-runs .run-words, ul.recent-runs .run-pages, ul.recent-runs .run-date { text-align: right; }
+ul.recent-runs .run-words, ul.recent-runs .run-pages, ul.recent-runs .run-date { text-align: end; }
 
 @media (max-width: 720px) {
   ul.recent-runs a.run-row {
@@ -692,12 +697,12 @@ ul.recent-runs .run-words, ul.recent-runs .run-pages, ul.recent-runs .run-date {
     gap: 6px 14px;
   }
   ul.recent-runs .run-url { flex: 1 0 100%; }
-  ul.recent-runs .run-words, ul.recent-runs .run-pages, ul.recent-runs .run-date { text-align: left; }
+  ul.recent-runs .run-words, ul.recent-runs .run-pages, ul.recent-runs .run-date { text-align: start; }
 }
 ul.recent-runs a.run-row:hover { background: #FCFBF8; text-decoration: none; }
 .run-url { font-family: var(--font-mono); font-size: 13px; color: var(--brand); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sample-tag {
-  margin-left: 10px;
+  margin-inline-start: 10px;
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--neutral-bg);
@@ -818,7 +823,7 @@ ul.recent-runs a.run-row:hover { background: #FCFBF8; text-decoration: none; }
    report is capped to. */
 .totals-bar .stat-card { flex: 1 1 0; min-width: 0; }
 .totals-bar .stat-card:first-child { flex: 0 0 auto; }
-.totals-bar .stat-card { padding-left: 18px; }
+.totals-bar .stat-card { padding-inline-start: 18px; }
 .totals-bar .stat-card .big { font-size: 21px; letter-spacing: -0.5px; }
 
 @media (max-width: 760px) {
@@ -827,16 +832,16 @@ ul.recent-runs a.run-row:hover { background: #FCFBF8; text-decoration: none; }
   .totals-bar { padding: 14px 20px; }
   .totals-bar .stat-card { flex: 1 1 40%; }
   .totals-bar .stat-card:first-child { flex: 1 1 40%; }
-  .totals-bar .stat-card:nth-child(odd) { border-left: none; padding-left: 0; }
+  .totals-bar .stat-card:nth-child(odd) { border-inline-start: none; padding-inline-start: 0; }
 }
 .stat-card {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-left: 1px solid var(--border);
-  padding-left: 24px;
+  border-inline-start: 1px solid var(--border);
+  padding-inline-start: 24px;
 }
-.stat-card:first-child { border-left: none; padding-left: 0; gap: 6px; }
+.stat-card:first-child { border-inline-start: none; padding-inline-start: 0; gap: 6px; }
 .stat-card .muted {
   font-size: 11px;
   font-weight: 600;
@@ -1223,7 +1228,7 @@ ul.issues-list .issue-reason {
 
 table.folder-table { width: 100%; border-collapse: collapse; }
 table.folder-table thead th {
-  text-align: right;
+  text-align: end;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1232,21 +1237,21 @@ table.folder-table thead th {
   padding: 0 4px 8px;
   border-bottom: 1px solid var(--border-strong);
 }
-table.folder-table thead th:first-child { text-align: left; }
+table.folder-table thead th:first-child { text-align: start; }
 table.folder-table td {
   font-family: var(--font-mono);
   font-size: 13px;
   padding: 9px 4px;
   border-bottom: 1px solid var(--border);
-  text-align: right;
+  text-align: end;
   position: relative;
 }
-table.folder-table td:first-child { text-align: left; }
+table.folder-table td:first-child { text-align: start; }
 table.folder-table td.folder-words { font-weight: 600; }
 table.folder-table td.folder-pages { color: var(--muted); }
 .folder-bar {
   position: absolute;
-  left: 0; top: 4px; bottom: 4px;
+  inset-inline-start: 0; top: 4px; bottom: 4px;
   background: var(--folder-bar);
   border-radius: 3px;
   z-index: 0;
@@ -1299,12 +1304,12 @@ ol#top-pages-list .words { font-family: var(--font-mono); font-size: 13px; font-
 }
 .page-more .muted { font-size: 13px; }
 table { width: 100%; border-collapse: collapse; margin: 0; font-size: 13px; }
-th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid #F0EDE4; }
+th, td { text-align: start; padding: 10px 16px; border-bottom: 1px solid #F0EDE4; }
 th {
   position: sticky;
   top: 0;
   background: var(--bg-input);
-  text-align: left;
+  text-align: start;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1314,14 +1319,14 @@ th {
   z-index: 2;
 }
 td.url-cell { font-family: var(--font-mono); font-size: 12px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-td.words-cell { font-family: var(--font-mono); font-weight: 600; text-align: right; white-space: nowrap; }
-th:nth-child(3) { text-align: right; }
+td.words-cell { font-family: var(--font-mono); font-weight: 600; text-align: end; white-space: nowrap; }
+th:nth-child(3) { text-align: end; }
 /* Opt out of / into that positional rule where the column order differs. */
-th.col-left { text-align: left; }
-th.col-num { text-align: right; }
+th.col-left { text-align: start; }
+th.col-num { text-align: end; }
 tr.page-failed { color: var(--danger-text); }
 tr.page-failed td.url-cell { color: var(--danger-text); }
 tr.page-blocked-host { color: var(--warn-text); background: var(--blocked-row-bg); }
 tr.page-blocked-host td.url-cell { color: var(--warn-text); }
-td.open-cell { text-align: right; }
+td.open-cell { text-align: end; }
 td.open-cell a { font-size: 12px; white-space: nowrap; }

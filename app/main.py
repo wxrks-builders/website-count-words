@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app import auth, billing, db, markdown_store, report, surfaces
+from app import auth, billing, db, i18n, markdown_store, report, surfaces
 from app.auth import get_current_user, is_admin, require_admin, require_user, require_user_api
 from app.crawler import (MAX_CONCURRENT_CRAWLS, PAUSE_AT_WORDS, backfill_detected_cms,
                          estimate_result_from_snapshot, run_crawl)
@@ -150,7 +150,22 @@ async def _record_origin(request: Request, call_next):
     """
     request.state.surface = surfaces.for_host(request.headers.get("host"))
     remember_origin(str(request.base_url))
-    return await call_next(request)
+
+    # Language comes off the front of the path, the way wxrks.com addresses its
+    # own translations. The prefix is then removed from the scope so all 31
+    # routes match exactly the patterns they already declare — the alternative
+    # is declaring every route twice, which is a second place to forget one.
+    lang, rest = i18n.split_path(request.url.path)
+    request.state.lang = lang
+    if rest != request.url.path:
+        request.scope["path"] = rest
+        request.scope["raw_path"] = rest.encode()
+
+    response = await call_next(request)
+    # So a shared or bookmarked URL keeps its language, and so caches don't
+    # serve one language's page under another's URL.
+    response.headers.setdefault("Content-Language", i18n.HREFLANG.get(lang, lang))
+    return response
 
 
 def _valid_url(url: str) -> bool:

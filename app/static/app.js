@@ -1,3 +1,25 @@
+// Translated strings and the locale, rendered into the page by base.html.
+// Falls back to the key rather than throwing: a string added to app.js before
+// it is added to app/js_strings.py should look wrong, not break the page.
+const I18N = window.I18N || {};
+const LOCALE = window.LOCALE || "en";
+
+function t(key, vars) {
+  let text = I18N[key] || key;
+  if (vars) {
+    for (const [name, value] of Object.entries(vars)) {
+      text = text.split(`%(${name})s`).join(value);
+    }
+  }
+  return text;
+}
+
+// Every number in this app is the product, so it formats for the reader:
+// 662,431 in English, 662.431 in German, 662 431 in French.
+function n(value) {
+  return Number(value || 0).toLocaleString(LOCALE);
+}
+
 // Common two-letter language codes, used only to *suggest* a value for the
 // language filter from whatever URL is pasted in — not exhaustive (the
 // backend's ISO 639-1 set is authoritative for actually filtering), just
@@ -279,8 +301,8 @@ function formatDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  const datePart = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const timePart = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const datePart = d.toLocaleDateString(LOCALE, { month: "long", day: "numeric", year: "numeric" });
+  const timePart = d.toLocaleTimeString(LOCALE, { hour: "numeric", minute: "2-digit" });
   return `${datePart} · ${timePart}`;
 }
 
@@ -333,7 +355,7 @@ function renderPageRow(tbody, page, append) {
   titleTd.textContent = page.title || "";
   const wordsTd = document.createElement("td");
   wordsTd.className = "words-cell";
-  wordsTd.textContent = page.blocked_by_host ? "blocked" : page.success ? page.word_count.toLocaleString("en-US") : "failed";
+  wordsTd.textContent = page.blocked_by_host ? "blocked" : page.success ? page.word_count.toLocaleString(LOCALE) : "failed";
   const openTd = document.createElement("td");
   openTd.className = "open-cell";
   const openLink = document.createElement("a");
@@ -380,7 +402,7 @@ function renderExpandableTableRows(tbody, rows, colSpan, renderRowFn) {
   td.className = "show-all-row";
   const link = document.createElement("a");
   link.href = "#";
-  link.textContent = `Show all ${rows.length.toLocaleString("en-US")}`;
+  link.textContent = `Show all ${rows.length.toLocaleString(LOCALE)}`;
   link.addEventListener("click", (e) => {
     e.preventDefault();
     fill(rows);
@@ -408,11 +430,11 @@ function renderFolderRow(group, maxWords) {
 
   const countTd = document.createElement("td");
   countTd.className = "folder-pages";
-  countTd.innerHTML = `<span>${count.toLocaleString("en-US")}</span>`;
+  countTd.innerHTML = `<span>${count.toLocaleString(LOCALE)}</span>`;
 
   const wordsTd = document.createElement("td");
   wordsTd.className = "folder-words";
-  wordsTd.innerHTML = `<span>${words.toLocaleString("en-US")}</span>`;
+  wordsTd.innerHTML = `<span>${words.toLocaleString(LOCALE)}</span>`;
 
   tr.append(folderTd, countTd, wordsTd);
   return tr;
@@ -508,7 +530,7 @@ function renderPageListItem(page, i) {
   path.textContent = page.url;
   const words = document.createElement("span");
   words.className = "words";
-  words.textContent = page.word_count.toLocaleString("en-US");
+  words.textContent = page.word_count.toLocaleString(LOCALE);
   li.append(rank, path, words);
   return li;
 }
@@ -528,7 +550,7 @@ function fillExpandableList(list, rows, total, label) {
   li.className = "show-all-row";
   const link = document.createElement("a");
   link.href = "#";
-  link.textContent = label || `Show all ${total.toLocaleString("en-US")}`;
+  link.textContent = label || `Show all ${total.toLocaleString(LOCALE)}`;
   link.addEventListener("click", (e) => {
     e.preventDefault();
     fill(rows);
@@ -585,7 +607,7 @@ function renderServerSummary(summary) {
   const topList = document.getElementById("top-pages-list");
   const topRows = summary.top_pages.map((p, i) => renderPageListItem(p, i));
   fillExpandableList(topList, topRows, summary.top_pages.length,
-    summary.top_pages_capped ? `Show top ${summary.top_pages.length.toLocaleString("en-US")}` : null);
+    summary.top_pages_capped ? `Show top ${summary.top_pages.length.toLocaleString(LOCALE)}` : null);
 
   const renderGroups = (rows, tbodyId) => {
     const max = rows.length ? rows[0].words : 1;
@@ -605,7 +627,7 @@ function renderServerSummary(summary) {
 }
 
 function setStatCount(el, count) {
-  el.textContent = count.toLocaleString("en-US");
+  el.textContent = count.toLocaleString(LOCALE);
   el.classList.toggle("zero", count === 0);
 }
 
@@ -733,16 +755,16 @@ function initCrawlPage(opts) {
     const parts = [];
     const spoken = [];
     if (blocked.length) {
-      parts.push(`${blocked.length.toLocaleString("en-US")} blocked`);
+      parts.push(`${blocked.length.toLocaleString(LOCALE)} blocked`);
       spoken.push(blocked.length === 1
         ? "1 page was blocked by this site's own bot detection."
-        : `${blocked.length.toLocaleString("en-US")} pages were blocked by this site's own bot detection.`);
+        : `${blocked.length.toLocaleString(LOCALE)} pages were blocked by this site's own bot detection.`);
     }
     if (otherFailed.length) {
-      parts.push(`${otherFailed.length.toLocaleString("en-US")} failed`);
+      parts.push(`${otherFailed.length.toLocaleString(LOCALE)} failed`);
       spoken.push(otherFailed.length === 1
         ? "1 page failed to load."
-        : `${otherFailed.length.toLocaleString("en-US")} pages failed to load.`);
+        : `${otherFailed.length.toLocaleString(LOCALE)} pages failed to load.`);
     }
 
     if (!parts.length) {
@@ -765,8 +787,8 @@ function initCrawlPage(opts) {
   };
 
   const updatePageCount = (count) => {
-    pageCountEl.textContent = count.toLocaleString("en-US");
-    pagesHeadingCountEl.textContent = count ? `— ${count.toLocaleString("en-US")} crawled` : "";
+    pageCountEl.textContent = count.toLocaleString(LOCALE);
+    pagesHeadingCountEl.textContent = count ? `— ${count.toLocaleString(LOCALE)} crawled` : "";
   };
 
   const updateSettingsPills = (domainScope, languageSetting, detectedLanguage, exclusions) => {
@@ -787,10 +809,10 @@ function initCrawlPage(opts) {
 
   const showEstimatePanel = (result) => {
     if (!result) return;
-    estimatePagesFetchedEl.textContent = result.pages_fetched.toLocaleString("en-US");
-    estimateTotalPagesEl.textContent = result.total_pages_estimate.toLocaleString("en-US");
-    estimateAvgWordsEl.textContent = result.avg_words_per_page.toLocaleString("en-US");
-    estimateTotalWordsEl.textContent = result.estimated_total_words.toLocaleString("en-US");
+    estimatePagesFetchedEl.textContent = result.pages_fetched.toLocaleString(LOCALE);
+    estimateTotalPagesEl.textContent = result.total_pages_estimate.toLocaleString(LOCALE);
+    estimateAvgWordsEl.textContent = result.avg_words_per_page.toLocaleString(LOCALE);
+    estimateTotalWordsEl.textContent = result.estimated_total_words.toLocaleString(LOCALE);
 
     estimateConfidenceBadge.textContent = CONFIDENCE_LABELS[result.confidence] || "";
     estimateConfidenceBadge.className = "pill confidence-badge confidence-" + (result.confidence || "low");
@@ -804,7 +826,7 @@ function initCrawlPage(opts) {
       estimateCmsPill.style.display = "none";
     }
 
-    const pagesText = result.total_pages_estimate.toLocaleString("en-US");
+    const pagesText = result.total_pages_estimate.toLocaleString(LOCALE);
     estimateMessageEl.textContent = result.sitemap_found
       ? `Found a sitemap — this site has approximately ${pagesText} pages. Crawling all of them may take a while.`
       : `No sitemap found — this estimate is based only on pages discovered so far (approximately ${pagesText}), so it may be less accurate. Crawling all of them may take a while.`;
@@ -824,8 +846,8 @@ function initCrawlPage(opts) {
       }
     }
     estimateSpeedEl.textContent =
-      `${result.words_per_minute.toLocaleString("en-US")} words/min` +
-      ` · ${result.pages_per_minute.toLocaleString("en-US")} pages/min`;
+      `${result.words_per_minute.toLocaleString(LOCALE)} words/min` +
+      ` · ${result.pages_per_minute.toLocaleString(LOCALE)} pages/min`;
     estimateConcurrencyPill.textContent = concurrencyLabel(result.concurrent_crawls) + " server load";
 
     if (!estimateTags) {
@@ -887,16 +909,16 @@ function initCrawlPage(opts) {
     const parts = [];
     const spoken = [];
     if (summary.blocked_count) {
-      parts.push(`${summary.blocked_count.toLocaleString("en-US")} blocked`);
+      parts.push(`${summary.blocked_count.toLocaleString(LOCALE)} blocked`);
       spoken.push(summary.blocked_count === 1
         ? "1 page was blocked by this site's own bot detection."
-        : `${summary.blocked_count.toLocaleString("en-US")} pages were blocked by this site's own bot detection.`);
+        : `${summary.blocked_count.toLocaleString(LOCALE)} pages were blocked by this site's own bot detection.`);
     }
     if (summary.failed_count) {
-      parts.push(`${summary.failed_count.toLocaleString("en-US")} failed`);
+      parts.push(`${summary.failed_count.toLocaleString(LOCALE)} failed`);
       spoken.push(summary.failed_count === 1
         ? "1 page failed to load."
-        : `${summary.failed_count.toLocaleString("en-US")} pages failed to load.`);
+        : `${summary.failed_count.toLocaleString(LOCALE)} pages failed to load.`);
     }
     if (!parts.length) {
       pageIssuesDetails.style.display = "none";
@@ -909,7 +931,7 @@ function initCrawlPage(opts) {
     if (summary.issues_capped) {
       const li = document.createElement("li");
       li.className = "muted";
-      li.textContent = `Showing the first ${summary.issues.length.toLocaleString("en-US")} — export the CSV for the rest.`;
+      li.textContent = `Showing the first ${summary.issues.length.toLocaleString(LOCALE)} — export the CSV for the rest.`;
       pageIssuesList.appendChild(li);
     }
     pageIssuesDetails.style.display = "";
@@ -929,7 +951,7 @@ function initCrawlPage(opts) {
     if (!md || !md.enabled) return;
     markdownStat.style.display = "";
     markdownSizeEl.textContent = formatBytes(md.bytes);
-    markdownPagesEl.textContent = `${md.pages.toLocaleString("en-US")} pages`;
+    markdownPagesEl.textContent = `${md.pages.toLocaleString(LOCALE)} pages`;
 
     if (markdownBtn) {
       markdownBtn.style.display = md.pages ? "" : "none";
@@ -943,7 +965,7 @@ function initCrawlPage(opts) {
     const reason = MARKDOWN_STOP_REASONS[md.state];
     if (reason && terminal) {
       markdownNote.textContent =
-        `Markdown was saved for the first ${md.pages.toLocaleString("en-US")} pages, then stopped because ` +
+        `Markdown was saved for the first ${md.pages.toLocaleString(LOCALE)} pages, then stopped because ` +
         `${reason}. The word count below is complete either way.`;
       markdownNote.style.display = "block";
     }
@@ -970,14 +992,14 @@ function initCrawlPage(opts) {
       if (loaded >= PAGE_LIST_MAX) {
         btn.style.display = "none";
         note.textContent =
-          `Showing the first ${loaded.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} pages.` +
+          `Showing the first ${loaded.toLocaleString(LOCALE)} of ${total.toLocaleString(LOCALE)} pages.` +
           " Export the CSV for the complete list.";
         return;
       }
       btn.style.display = "";
       btn.disabled = false;
       btn.textContent = "Show more";
-      note.textContent = `${loaded.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
+      note.textContent = `${loaded.toLocaleString(LOCALE)} of ${total.toLocaleString(LOCALE)}`;
     };
 
     btn.addEventListener("click", async () => {
@@ -1179,7 +1201,7 @@ function initCrawlPage(opts) {
     runDateEl.textContent = "Started: " + formatDate(opts.createdAt);
     setEmailNotice(opts.initialStatus);
     setStatus(opts.initialStatus);
-    totalWordsEl.textContent = opts.initialTotalWords.toLocaleString("en-US");
+    totalWordsEl.textContent = opts.initialTotalWords.toLocaleString(LOCALE);
     updatePageCount(opts.initialPageCount);
     setStatCount(loginBlockedEl, opts.initialLoginBlockedCount || 0);
     setStatCount(duplicateEl, opts.initialDuplicateCount || 0);
@@ -1212,7 +1234,7 @@ function initCrawlPage(opts) {
   const applyStatus = (data) => {
     setStatus(data.status);
     setEmailNotice(data.status);
-    totalWordsEl.textContent = data.total_words.toLocaleString("en-US");
+    totalWordsEl.textContent = data.total_words.toLocaleString(LOCALE);
     updatePageCount(data.page_count);
     setStatCount(loginBlockedEl, data.login_blocked_count);
     setStatCount(duplicateEl, data.duplicate_count);
@@ -1301,9 +1323,9 @@ function initCrawlPage(opts) {
         pageMore.style.display = "flex";
         document.getElementById("page-more-btn").style.display = "none";
         document.getElementById("page-more-note").textContent =
-          `Showing the most recent ${PAGE_LIST_MAX.toLocaleString("en-US")} pages while this crawl runs.`;
+          `Showing the most recent ${PAGE_LIST_MAX.toLocaleString(LOCALE)} pages while this crawl runs.`;
       }
-      totalWordsEl.textContent = data.total_words.toLocaleString("en-US");
+      totalWordsEl.textContent = data.total_words.toLocaleString(LOCALE);
       updatePageCount(pages.length);
       updateBlockedHostCount(pages);
       if (data.markdown_bytes !== undefined) {

@@ -27,6 +27,7 @@ from app import db, markdown_store, surfaces
 from app.job_store import dequeue_next, get_job, list_active_jobs
 from app.models import PageResult
 from app.notifications import send_crawl_notification
+from app.i18n import N_
 from app.plans import CONCURRENCY_FLOOR, active_page_load, resolve_concurrency, speedup_over
 from app.url_policy import ExclusionFilter, FrontierDedupeFilter, canonical_key, parse_exclusions
 from app.word_count import count_words
@@ -710,7 +711,10 @@ async def _resolve_terminal_status(job, pause_at_words: int | None, url: str, fi
     elif _memory_exceeded():
         job.status = "cancelled"
         job.stop_kind = "memory"
-        job.stopped_reason = (
+        # Stored in English and translated where it is shown: gettext keys on
+        # the source string, so _() on the stored sentence finds it. Written at
+        # crawl time, when there is no request and so no language.
+        job.stopped_reason = N_(
             "This crawl was stopped automatically — it was using too much "
             "memory to continue safely on this server."
         )
@@ -773,10 +777,12 @@ async def _stall_watchdog(job) -> None:
             return
         idle_seconds = (datetime.now(timezone.utc) - job.last_progress_at).total_seconds()
         if idle_seconds >= STALL_TIMEOUT_SECONDS:
-            job.stopped_reason = (
-                f"This crawl stalled — no page was fetched for over "
-                f"{STALL_TIMEOUT_SECONDS // 60} minutes — and was stopped automatically."
-            )
+            # %-format rather than an f-string: an interpolated number would
+            # make every timeout value a different msgid to translate.
+            job.stopped_reason = N_(
+                "This crawl stalled — no page was fetched for over %(minutes)s "
+                "minutes — and was stopped automatically."
+            ) % {"minutes": STALL_TIMEOUT_SECONDS // 60}
             # Set before request_cancel(), because that sets cancel_requested
             # and from there this is indistinguishable from someone clicking
             # Cancel — which is exactly the confusion this tag exists to end.

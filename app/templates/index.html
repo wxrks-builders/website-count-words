@@ -5,28 +5,28 @@
   {% include "_topbar.html" %}
 
   <div class="page-wrap">
-    <p class="subtitle">Crawl a website and count every word it contains — total, per page, per folder.</p>
+    <p class="subtitle">{{ _('Crawl a website and count every word it contains — total, per page, per folder.') }}</p>
 
     <form class="crawl-form" id="crawl-form">
       <input type="url" id="url" name="url" placeholder="https://example.com" required>
-      <select id="domain_scope" class="domain-scope" title="Which pages count as part of this site?">
-        <option value="all" selected>Whole domain (incl. subdomains)</option>
-        <option value="subdomain_only">This subdomain only</option>
-        <option value="top_domain_only">Top-level domain only</option>
+      <select id="domain_scope" class="domain-scope" title="{{ _('Which pages count as part of this site?') }}">
+        <option value="all" selected>{{ _('Whole domain (incl. subdomains)') }}</option>
+        <option value="subdomain_only">{{ _('This subdomain only') }}</option>
+        <option value="top_domain_only">{{ _('Top-level domain only') }}</option>
       </select>
       {# Hidden for now, not removed: the field, its URL-based suggestion and
          the server-side filter all still work, so unhiding is deleting one
          attribute. Language still applies either way — with nothing entered
          the crawler restricts to the starting page's own declared language. #}
       <input type="text" id="language" class="language-input" hidden placeholder="Primary language (auto)" title="Only crawl this language's pages, for sites with a /en/, /fr/, ... path per language. Leave blank to auto-detect the starting page's language. Comma-separate multiple codes to keep more than one (e.g. en, pt, es).">
-      <label class="checkbox-label" title="Save each page's main content as Markdown, downloadable as a ZIP when the crawl finishes.">
-        <input type="checkbox" id="capture-markdown"{% if surface.default_capture_markdown %} checked{% endif %}> Save Markdown
+      <label class="checkbox-label" title="{{ _('Save each page\'s main content as Markdown, downloadable as a ZIP when the crawl finishes.') }}">
+        <input type="checkbox" id="capture-markdown"{% if surface.default_capture_markdown %} checked{% endif %}> {{ _('Save Markdown') }}
       </label>
-      <button type="submit" id="submit-btn">Crawl</button>
+      <button type="submit" id="submit-btn">{{ _('Crawl') }}</button>
     </form>
     <details class="crawl-advanced">
-      <summary>Advanced</summary>
-      <label class="advanced-field" for="exclusions">Exclude subdomains or folders</label>
+      <summary>{{ _('Advanced') }}</summary>
+      <label class="advanced-field" for="exclusions">{{ _('Exclude subdomains or folders') }}</label>
       <div class="tag-input" id="exclusions">
         <span data-tag-list></span>
         {# Not associated with the form: Enter inside a tag input means "commit
@@ -43,15 +43,15 @@
 
     <div style="margin-top:52px;">
       <div class="list-head">
-        <div class="section-label">Your recent runs</div>
+        <div class="section-label">{{ _('Your recent runs') }}</div>
         {% if total_runs > recent_runs|length %}
-        <a href="/runs">See all {{ "{:,}".format(total_runs) }} →</a>
+        <a href="{{ url('/runs') }}">{{ _('See all %(n)s', n=num(total_runs)) }} →</a>
         {% endif %}
       </div>
       {% if recent_runs %}
         {% with runs = recent_runs %}{% include "_run_list.html" %}{% endwith %}
       {% else %}
-        <p class="muted">No crawls yet — try one above.</p>
+        <p class="muted">{{ _('No crawls yet — try one above.') }}</p>
       {% endif %}
     </div>
 
@@ -64,20 +64,17 @@
         {%- if p.logo_url %}
         <span class="promo-logo"><img src="{{ p.logo_url }}" alt="{{ p.cms }}" width="16" height="16"></span>
         {%- endif %}
-        Your last crawl of {{ p.domain }} found
-        <strong>{{ "{:,}".format(p.total_words) }}</strong> words.
+        {{ _('Your last crawl of %(domain)s found %(words)s words.', domain=p.domain, words='<strong>' ~ num(p.total_words) ~ '</strong>') | safe }}
       </p>
       <p class="promo-body">
         {%- if p.cms %}
-        wxrks has a {{ p.cms }} connector: it pulls your content straight from
-        {{ p.cms }}, translates it with the best AI models and keeps it in sync.
+        {{ _('wxrks has a %(cms)s connector: it pulls your content straight from %(cms)s, translates it with the best AI models and keeps it in sync.', cms=p.cms) }}
         {%- else %}
-        wxrks pulls the content and translates it with the best AI models, then keeps
-        it in sync as the site changes.
+        {{ _('wxrks pulls the content and translates it with the best AI models, then keeps it in sync as the site changes.') }}
         {%- endif %}
       </p>
       <a class="button" href="{{ p.url }}" target="_blank" rel="noopener">
-        {% if p.cms %}See the {{ p.cms }} connector{% else %}What that costs{% endif %} →
+        {% if p.cms %}{{ _('See the %(cms)s connector', cms=p.cms) }}{% else %}{{ _('What that costs') }}{% endif %} →
       </a>
     </aside>
     {% endif %}

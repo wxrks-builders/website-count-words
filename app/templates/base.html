@@ -1,21 +1,32 @@
 <!doctype html>
-<html lang="en">
+{# dir mirrors the whole layout for Arabic, not just the text — see
+   RTL_LANGUAGES in app/i18n.py and the logical properties in style.css. #}
+<html lang="{{ hreflang }}" dir="{{ lang_dir }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   {# `surface` is injected into every render by the context processor in
      app/templates.py, so pages don't have to pass it. #}
-  <title>{% block title %}{{ surface.name }} — {{ surface.tagline }}{% endblock %}</title>
-  <meta name="description" content="{% block description %}{{ surface.description }}{% endblock %}">
+  <title>{% block title %}{{ _(surface.name) }} — {{ _(surface.tagline) }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ _(surface.description) }}{% endblock %}">
 
   {# Canonical per surface. Both hostnames are served by the same app, so
      without this they'd compete with each other for the same searches. #}
   <link rel="canonical" href="{% block canonical %}{{ surface.url(request.url.path) }}{% endblock %}">
 
+  {# Every language declares every other, including itself, which is what
+     hreflang requires. The codes are regional (de-DE, pt-BR) against short
+     paths (/de, /pt) — the same pairing wxrks.com publishes, so the two
+     properties agree about what a language is. #}
+  {% for code, alt_path in alternates %}
+  <link rel="alternate" hreflang="{{ code }}" href="{{ surface.url(alt_path) }}">
+  {% endfor %}
+  <link rel="alternate" hreflang="x-default" href="{{ surface.url(alternates[0][1]) }}">
+
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="{{ surface.name }}">
-  <meta property="og:title" content="{% block og_title %}{{ surface.name }} — {{ surface.tagline }}{% endblock %}">
+  <meta property="og:site_name" content="{{ _(surface.name) }}">
+  <meta property="og:title" content="{% block og_title %}{{ _(surface.name) }} — {{ _(surface.tagline) }}{% endblock %}">
   <meta property="og:description" content="{% block og_description %}{{ surface.description }}{% endblock %}">
   <meta property="og:url" content="{{ surface.url(request.url.path) }}">
   <meta property="og:image" content="{{ surface.url(surface.og_image) }}">
@@ -37,6 +48,14 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  {# The strings and locale app.js needs, rendered per request. Both come from
+     the same catalogue the templates use — see app/js_strings.py for why there
+     is only one. #}
+  <script id="i18n-data" type="application/json">{{ js_strings | tojson }}</script>
+  <script>
+    window.I18N = JSON.parse(document.getElementById("i18n-data").textContent);
+    window.LOCALE = {{ hreflang | tojson }};
+  </script>
   {% block body %}{% endblock %}
 </body>
 </html>
