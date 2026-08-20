@@ -43,6 +43,9 @@
           <button type="button" class="secondary action-dots" data-menu-button
                   aria-haspopup="true" aria-expanded="false" title="{{ _('More actions') }}">⋯</button>
           <div class="action-menu-list" role="menu" data-menu-panel hidden>
+            {# Shown by app.js once the run actually has blocked or failed
+               pages — an empty diagnostics item is noise. #}
+            <button type="button" role="menuitem" id="page-issues-open-btn" style="display:none;"></button>
             <button type="button" role="menuitem" id="recrawl-open-btn">{{ _('Re-crawl') }}…</button>
             <button type="button" role="menuitem" id="delete-btn" class="menu-danger" style="display:none;">{{ _('Delete run') }}</button>
           </div>
@@ -109,8 +112,11 @@
        controls. A <details> that grows to the full row when open, so the panel
        it reveals never has to be an overlay. #}
     <div class="run-bar" id="action-row">
-      <details class="run-disclosure" id="page-issues-details" style="display:none;">
-        <summary class="run-chip run-chip-warn">
+      {# Headless like the re-crawl form: the ⋯ menu opens it, the list keeps
+         its full width down here. The count itself stays visible in the
+         Blocked stat tiles above, so no signal is lost by removing the chip. #}
+      <details class="run-disclosure run-disclosure-headless" id="page-issues-details" style="display:none;">
+        <summary class="run-chip run-chip-warn" hidden>
           <span id="page-issues-note"></span>
         </summary>
         <ul id="page-issues-list" class="issues-list"></ul>

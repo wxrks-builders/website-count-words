@@ -779,10 +779,7 @@ function initCrawlPage(opts) {
       return;
     }
     pageIssuesNote.textContent = parts.join(" · ");
-    // The summary is the clickable chip, so the explanation belongs on it.
-    const summary = pageIssuesDetails.querySelector("summary");
-    if (summary) summary.title = `${spoken.join(" ")} Click to see which.`;
-
+    showIssuesMenuItem(parts);
     renderIssuesList([...blocked, ...otherFailed]);
     pageIssuesDetails.style.display = "";
   };
@@ -932,8 +929,7 @@ function initCrawlPage(opts) {
       return;
     }
     pageIssuesNote.textContent = parts.join(" · ");
-    const issuesSummary = pageIssuesDetails.querySelector("summary");
-    if (issuesSummary) issuesSummary.title = `${spoken.join(" ")} Click to see which.`;
+    showIssuesMenuItem(parts);
     renderIssuesList(summary.issues);
     if (summary.issues_capped) {
       const li = document.createElement("li");
@@ -1201,6 +1197,30 @@ function initCrawlPage(opts) {
     if (opts.mode === "live") shareBtn.disabled = true;
   }
 
+  // The ⋯ menu drives two panels that live down in the run bar, where they
+  // keep their full width. Bound here, before the mode branch: a finished
+  // report returns early below, and Re-crawl is precisely a finished-report
+  // action — binding it after the return is how it shipped doing nothing.
+  const openFromMenu = (buttonId, detailsId) => {
+    const item = document.getElementById(buttonId);
+    const panel = document.getElementById(detailsId);
+    if (!item || !panel) return;
+    item.addEventListener("click", () => {
+      panel.open = !panel.open;
+      if (panel.open) panel.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
+  openFromMenu("recrawl-open-btn", "recrawl-disclosure");
+  openFromMenu("page-issues-open-btn", "page-issues-details");
+
+  // The issues item only appears once there is something to look at.
+  const issuesOpenBtn = document.getElementById("page-issues-open-btn");
+  const showIssuesMenuItem = (parts) => {
+    if (!issuesOpenBtn) return;
+    issuesOpenBtn.textContent = `${t("view_issues")} · ${parts.join(" · ")}`;
+    issuesOpenBtn.style.display = "";
+  };
+
   if (opts.mode === "past" || opts.mode === "shared") {
     if (opts.mode === "shared") {
       actionRow.style.display = "none";
@@ -1288,20 +1308,6 @@ function initCrawlPage(opts) {
     setStatus("starting");
     setEmailNotice("starting");
     cancelBtn.style.display = "";
-  }
-
-  // "Re-crawl…" in the header's ⋯ menu opens the options form down in the run
-  // bar — the form keeps its full width and its tag input, which would never
-  // fit inside a dropdown.
-  const recrawlOpenBtn = document.getElementById("recrawl-open-btn");
-  const recrawlDisclosure = document.getElementById("recrawl-disclosure");
-  if (recrawlOpenBtn && recrawlDisclosure) {
-    recrawlOpenBtn.addEventListener("click", () => {
-      recrawlDisclosure.open = !recrawlDisclosure.open;
-      if (recrawlDisclosure.open) {
-        recrawlDisclosure.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    });
   }
 
   proceedBtn.addEventListener("click", async () => {

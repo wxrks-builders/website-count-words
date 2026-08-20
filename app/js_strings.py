@@ -53,6 +53,7 @@ def catalogue(lang: str) -> dict[str, str]:
         "show_all": _("Show all"),
         "root_folder": _("(root)"),
         "no_pages_yet": _("No pages counted yet."),
+        "view_issues": _("View blocked/failed pages"),
 
         # Estimate panel
         "high_confidence": _("High confidence"),

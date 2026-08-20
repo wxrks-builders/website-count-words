@@ -616,3 +616,20 @@ def test_a_shared_report_gets_no_owner_actions_but_keeps_its_exports(app_env):
     assert "recrawl-disclosure" not in html, "an anonymous re-crawl has no account to belong to"
     assert "export-csv-btn" in html, "exports are part of the report being shared"
     assert 'class="lang-menu"' in html
+
+
+def test_the_menu_bindings_run_before_the_finished_report_returns(app_env):
+    """initCrawlPage returns early for a finished report — and Re-crawl is
+    precisely a finished-report action. Binding it after that return is how the
+    menu item shipped doing nothing; this pins the order structurally."""
+    js = (Path(__file__).resolve().parents[1] / "app/static/app.js").read_text()
+    branch = js.index('if (opts.mode === "past" || opts.mode === "shared")')
+    assert js.index('openFromMenu("recrawl-open-btn"') < branch
+    assert js.index('openFromMenu("page-issues-open-btn"') < branch
+
+
+def test_the_blocked_list_lives_behind_the_dots_too(app_env):
+    save(app_env)
+    html = app_env.client.get("/crawl/r", headers=counter_host(app_env)).text
+    assert 'id="page-issues-open-btn"' in html
+    assert html.count("run-disclosure-headless") == 2, "issues and re-crawl both open from the menu"
