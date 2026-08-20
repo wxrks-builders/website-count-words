@@ -290,3 +290,97 @@ class TestAssetsBustTheCache:
         first = t._asset_version()
         (tmp_path / "app.js").write_text("//2")
         assert t._asset_version() != first
+
+
+class TestCataloguesStaySound:
+    """The import script validates a batch; these validate forever — including
+    hand-edits that never went through the script."""
+
+    def test_every_translated_string_keeps_its_placeholders(self):
+        """A translation that drops or renames a %(name)s raises at RENDER
+        time: the page using it 500s, in that language only. This is the
+        render-crash class caught at commit instead."""
+        import re
+
+        from babel.messages.pofile import read_po
+
+        ph = re.compile(r"%\([a-zA-Z_]+\)s")
+        problems = []
+        for po in sorted(i18n.LOCALE_DIR.glob("*/LC_MESSAGES/messages.po")):
+            with po.open("rb") as handle:
+                for message in read_po(handle):
+                    source = message.id if isinstance(message.id, str) else (message.id or [""])[0]
+                    target = message.string if isinstance(message.string, str) else (message.string or [""])[0]
+                    if not source or not target:
+                        continue
+                    if sorted(ph.findall(source)) != sorted(ph.findall(target)):
+                        problems.append(f"{po.parent.parent.name}: {source[:60]!r}")
+        assert problems == [], problems
+
+    def test_the_pot_is_not_stale_against_the_code(self):
+        """A stale catalogue is how a translator works on last week's strings
+        — the export refuses it, and this keeps the refusal honest in CI."""
+        import subprocess
+        import sys as _sys
+
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+        import translations
+
+        assert translations._pot_is_stale() is False, (
+            "run: pybabel extract -F babel.cfg -o locales/messages.pot "
+            "--no-location --sort-output . && pybabel update -i locales/messages.pot -d locales"
+        )
+
+
+class TestPseudoSweep:
+    """Renders the public pages under /zz/ and asserts nothing user-facing is
+    bare — a future feature with unmarked strings fails here instead of
+    shipping English into ten languages."""
+
+    ALLOWED = {
+        # Named in themselves by design (the language picker), product names,
+        # and data the page is about.
+        "wxrks", "Word Counter", "Site to Markdown", "EN", "ZZ", "Pro", "Admin",
+        "English", "Deutsch", "Español", "Français", "Italiano", "Português",
+        "Svenska", "العربية", "日本語", "한국어", "中文", "Example", "R", "Rodrigo",
+    }
+
+    def _bare(self, html):
+        import re
+
+        text = re.sub(r"<script.*?</script>|<style.*?</style>", " ", html, flags=re.S)
+        text = re.sub(r"<[^>]+>", "\n", text)
+        found = []
+        for line in text.splitlines():
+            t = line.strip()
+            if not t or "⟦" in t or "⟧" in t:
+                continue
+            if re.fullmatch(r"[\d,.\s·%×—:–\-()/&;+←→▾▸⋯×#]*", t):
+                continue
+            if re.match(r"https?://|[\w.-]+@[\w.-]+|^/", t):
+                continue
+            if t in self.ALLOWED or len(t) < 3:
+                continue
+            found.append(t)
+        return sorted(set(found))
+
+    def test_public_pages_have_no_unextracted_strings(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("PSEUDO_LOCALE", "1")
+        monkeypatch.setenv("DB_PATH", str(tmp_path / "z.db"))
+        monkeypatch.setenv("MARKDOWN_DIR", str(tmp_path / "markdown"))
+        monkeypatch.setattr(i18n, "PSEUDO_ENABLED", True)
+        import importlib
+
+        import app.db as db
+        import app.main as main
+        importlib.reload(db)
+        importlib.reload(main)
+        from fastapi.testclient import TestClient
+
+        with TestClient(main.app) as client:
+            client.headers["host"] = "wordcounter.wxrks.app"
+            for path in ("/zz/", "/zz/login"):
+                bare = self._bare(client.get(path).text)
+                # The <title> line joins name and tagline outside markers.
+                bare = [b for b in bare if "Word Counter" not in b]
+                assert bare == [], f"{path}: unextracted strings {bare}"

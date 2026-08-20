@@ -1,11 +1,17 @@
 <ul class="recent-runs">
   {% for run in runs %}
     <li>
-      <a href="/crawl/{{ run.id }}" class="run-row">
-        <span class="run-url">{{ run.source_url }}{% if run.is_sample %}<span class="sample-tag">Example</span>{% endif %}</span>
-        <span class="run-words">{{ "{:,}".format(run.total_words) }} words</span>
-        <span class="run-pages">{{ "{:,}".format(run.page_count) }} pages</span>
-        <span class="status-badge status-{{ run.status }}">{{ run.status | capitalize }}</span>
+      <a href="{{ url('/crawl/' ~ run.id) }}" class="run-row">
+        <span class="run-url">{{ run.source_url }}{% if run.is_sample %}<span class="sample-tag">{{ _('Example') }}</span>{% endif %}</span>
+        <span class="run-words">{{ _('%(n)s words', n=num(run.total_words)) }}</span>
+        <span class="run-pages">{{ _('%(n)s pages', n=num(run.page_count)) }}</span>
+        {# The mapping exists so pybabel sees each label as a literal — a dynamic
+           _(run.status) extracts nothing. #}
+        {% set status_labels = {'completed': _('Completed'), 'failed': _('Failed'),
+                                'cancelled': _('Cancelled'), 'paused': _('Paused'),
+                                'crawling': _('Crawling'), 'queued': _('Queued'),
+                                'starting': _('Starting…')} %}
+        <span class="status-badge status-{{ run.status }}">{{ status_labels.get(run.status, run.status | capitalize) }}</span>
         <span class="run-date run-date-iso" data-iso="{{ run.created_at }}"></span>
       </a>
     </li>

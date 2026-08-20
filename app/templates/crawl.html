@@ -70,7 +70,7 @@
   <div class="totals-bar report-wrap">
     <div class="stat-card">
       <div class="muted">{{ _('Status') }}</div>
-      <span class="status-badge" id="status-badge"><span id="status-dot"></span><span id="status-text">starting</span></span>
+      <span class="status-badge" id="status-badge"><span id="status-dot"></span><span id="status-text">{{ _('Starting…') }}</span></span>
     </div>
     <div class="stat-card">
       <div class="muted">{{ _('Total words') }}</div>
@@ -103,7 +103,7 @@
     <p class="note" id="limit-note" style="display:none;"></p>
     <p class="note" id="cancel-note" style="display:none;">{{ _('This crawl was cancelled — showing partial results.') }}</p>
     <p class="note" id="paused-past-note" style="display:none;">{{ _('This crawl was paused for an estimate and never resumed — showing partial results from before the pause.') }}</p>
-    <p class="note" id="try-different-page-note" style="display:none;">Nothing could be counted because the starting page itself couldn't be accessed. If you know another page on this site that might be more accessible (e.g. a blog post or inner page rather than the homepage), try starting the crawl from that URL instead.</p>
+    <p class="note" id="try-different-page-note" style="display:none;">{{ _('Nothing could be counted because the starting page itself couldn\'t be accessed. If you know another page on this site that might be more accessible (e.g. a blog post or inner page rather than the homepage), try starting the crawl from that URL instead.') }}</p>
     <p class="note" id="markdown-note" style="display:none;"></p>
     <p class="error-box" id="error-box" style="display:none;"></p>
 
@@ -146,7 +146,7 @@
              silently drop exclusions that were applied the first time. #}
           <input type="text" id="recrawl-exclusions" class="exclusions-input recrawl-exclusions" placeholder="Exclude: staging, /careers" title="{{ _('Comma-separated subdomains and folders to leave out. A leading / excludes a folder, anything else a subdomain.') }}">
           <label class="checkbox-label" title="Save each page's main content as Markdown, downloadable as a ZIP when the crawl finishes.">
-            <input type="checkbox" id="recrawl-markdown"{% if surface.default_capture_markdown %} checked{% endif %}> Save Markdown
+            <input type="checkbox" id="recrawl-markdown"{% if surface.default_capture_markdown %} checked{% endif %}> {{ _('Save Markdown') }}
           </label>
           <button type="submit" id="recrawl-btn">{{ _('Start re-crawl') }}</button>
         </form>
@@ -173,15 +173,13 @@
       </p>
       <p class="promo-body">
         {%- if p.cms %}
-        wxrks has a {{ p.cms }} connector: it pulls your content straight from
-        {{ p.cms }}, translates it with the best AI models and keeps it in sync.
+        {{ _('wxrks has a %(cms)s connector: it pulls your content straight from %(cms)s, translates it with the best AI models and keeps it in sync.', cms=p.cms) }}
         {%- else %}
-        wxrks pulls the content and translates it with the best AI models, then keeps
-        it in sync as the site changes.
+        {{ _('wxrks pulls the content and translates it with the best AI models, then keeps it in sync as the site changes.') }}
         {%- endif %}
       </p>
       <a class="button" href="{{ p.url }}" target="_blank" rel="noopener">
-        {% if p.cms %}See the {{ p.cms }} connector{% else %}What that costs{% endif %} →
+        {% if p.cms %}{{ _('See the %(cms)s connector', cms=p.cms) }}{% else %}{{ _('What that costs') }}{% endif %} →
       </a>
     </aside>
     {% endif %}
@@ -249,9 +247,7 @@
           <input type="text" placeholder="staging, web-staging, /careers">
         </div>
         <p class="muted advanced-hint">
-          Press Enter or comma to add one. A leading <code>/</code> excludes a folder,
-          anything else a subdomain — each entry is labelled with how it will be treated.
-          Applies to the rest of this crawl; pages already counted stay counted.
+          {{ _('Press Enter or comma to add one. A leading / excludes a folder, anything else a subdomain — each entry is labelled with how it will be treated. Applies to the rest of this crawl; pages already counted stay counted.') }}
         </p>
       </details>
       <div style="display:flex; gap:8px;">
@@ -291,13 +287,13 @@
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th>URL</th><th>Title</th><th>{{ _('Words') }}</th><th></th></tr>
+          <tr><th>{{ _('URL') }}</th><th>{{ _('Title') }}</th><th>{{ _('Words') }}</th><th></th></tr>
         </thead>
         <tbody id="page-tbody"></tbody>
       </table>
     </div>
     <div class="page-more" id="page-more" style="display:none;">
-      <button type="button" class="secondary" id="page-more-btn">Show more</button>
+      <button type="button" class="secondary" id="page-more-btn">{{ _('Show more') }}</button>
       <span class="muted" id="page-more-note"></span>
     </div>
   </div>
@@ -306,26 +302,26 @@
   <div class="modal-overlay" id="share-modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
       <div class="modal-head">
-        <h2 id="share-modal-title">Share this report</h2>
+        <h2 id="share-modal-title">{{ _('Share this report') }}</h2>
         <button type="button" class="modal-close" id="share-modal-close" aria-label="Close">×</button>
       </div>
 
       <div class="modal-body">
         <form id="share-email-form" class="share-invite-row">
-          <input type="email" id="share-email-input" placeholder="Add people by email" required>
-          <button type="submit">Send</button>
+          <input type="email" id="share-email-input" placeholder="{{ _('Add people by email') }}" required>
+          <button type="submit">{{ _('Send') }}</button>
         </form>
         <p class="muted" id="share-email-status"></p>
 
-        <div class="section-label">People with access</div>
+        <div class="section-label">{{ _('People with access') }}</div>
         <ul class="people-list" id="people-list">
           <li class="person-row">
             {% if user.picture %}<img class="avatar" src="{{ user.picture }}" alt="">{% else %}<span class="avatar">{{ user.name[0] | upper }}</span>{% endif %}
             <div class="person-id">
-              <span class="person-name">{{ user.name }} (you)</span>
+              <span class="person-name">{{ _('%(name)s (you)', name=user.name) }}</span>
               <span class="person-email">{{ user.email }}</span>
             </div>
-            <span class="person-role">Owner</span>
+            <span class="person-role">{{ _('Owner') }}</span>
           </li>
         </ul>
       </div>
@@ -340,16 +336,16 @@
             </svg>
           </span>
           <div class="person-id">
-            <span class="person-name">Public link</span>
-            <span class="person-email">Anyone with the link can view this report</span>
+            <span class="person-name">{{ _('Public link') }}</span>
+            <span class="person-email">{{ _('Anyone with the link can view this report') }}</span>
           </div>
-          <button type="button" class="switch" id="share-public-toggle" role="switch" aria-checked="false" aria-label="Public link">
+          <button type="button" class="switch" id="share-public-toggle" role="switch" aria-checked="false" aria-label="{{ _('Public link') }}">
             <span class="switch-knob"></span>
           </button>
         </div>
         <div class="share-link-row" id="share-link-row" style="display:none;">
           <input type="text" id="share-link-input" readonly>
-          <button type="button" id="share-copy-btn" class="secondary">Copy link</button>
+          <button type="button" id="share-copy-btn" class="secondary">{{ _('Copy link') }}</button>
         </div>
       </div>
     </div>

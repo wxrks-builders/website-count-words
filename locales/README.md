@@ -4,12 +4,19 @@ Ten languages, the same ones wxrks.com publishes: **ar, de, es, fr, it, ja, ko,
 pt, sv, zh**. English is the source and lives at the root of the site, so it has
 no catalogue of its own.
 
-## The loop
+## The loop with wxrks
 
-    pybabel extract -F babel.cfg -o locales/messages.pot .    # collect strings
-    pybabel update  -i locales/messages.pot -d locales        # merge into the ten
-    #   ... translate the .po files ...
-    pybabel compile -d locales                                # build the .mo
+    python scripts/translations.py export        # -> dist/wordcounter-translations-<date>.zip
+    #   upload to wxrks, translate the ten languages, export .po back
+    python scripts/translations.py import <zip>  # validates, writes, compiles, reports coverage
+    #   run pytest, commit the .po diffs, push — the deploy compiles them
+
+The export refuses a stale catalogue; the import refuses a batch with broken
+placeholders before writing anything. Under the hood it is still plain gettext:
+
+    pybabel extract -F babel.cfg -o locales/messages.pot --no-location --sort-output .
+    pybabel update  -i locales/messages.pot -d locales
+    pybabel compile -d locales
 
 `.po` files are committed. `.mo` files are **not** — they are build output, and
 `pybabel compile` runs in the Dockerfile.

@@ -56,7 +56,7 @@
     <div class="page-wrap">
       <span>{{ _(surface.name) }} — {{ _('a tool by wxrks') }}</span>
       {% for other in other_surfaces %}
-      <a href="{{ other.url() }}">{{ other.name }} ↗</a>
+      <a href="{{ other.url() }}">{{ _(other.name) }} ↗</a>
       {% endfor %}
     </div>
   </footer>
