@@ -23,7 +23,17 @@ Frontier rules and blocked-detection shared between both sides; B′ = the share
   2-3 with its adaptive rate limiter on.
 - **This IP has crawled these sites hard for weeks.** clay.com showed 0
   blocked for BOTH sides today (vs 301 historically), so the anti-bot gate
-  passed on thin evidence — neither side was actually challenged.
+  passed on thin evidence — neither side was actually challenged there.
+- **marriott.com supplied the real anti-bot test, added after the first
+  run, and both tools failed it — differently.** crawl4ai reported an
+  honest 'Akamai block (Reference #)'. Scrapling (Camoufox, including with
+  network_idle and a 60s timeout) received an HTTP 200 challenge shell:
+  3KB, 5 visible words, one link. That failure mode is WORSE for this
+  product than a block — a 'successful' 5-word homepage would enter a
+  word-count report as real data. The shared detector now treats a 200
+  under 10KB with under 20 words as a soft block; the production crawler
+  has no such guard and would benefit from one regardless of which
+  fetcher it uses.
 - **The costs are not small**: Scrapling ran 4-6x slower per page and at
   3-5x the memory. Eight Camoufox instances are eight Firefoxes; the app's
   whole MEMORY_LIMIT_MB budget would fit inside B's peak on one site.
@@ -119,3 +129,18 @@ Frontier rules and blocked-detection shared between both sides; B′ = the share
     - 1%  https://wordpress.org/showcase/  140 vs 139
     - 0%  https://wordpress.org/plugins/  485 vs 487
     - 0%  https://wordpress.org/news/2023/05/people-of-wordpress-stefano-cassone  1606 vs 1611
+
+### marriott — Akamai-protected — the real anti-bot gauntlet
+
+| | crawl4ai (A) | Scrapling (B) |
+|---|---|---|
+| pages ok / attempted | 0 / 1 | 0 / 1 |
+| blocked | 1 | 1 |
+| failed (non-block) | 0 | 0 |
+| words (own pipeline) | 0 | 0 |
+| pages/min | 46.2 | 21.4 |
+| median fetch ms | 829 | 2755 |
+| peak RSS MB | 533.5 | 1194.2 |
+
+- **Fetcher-attributable word delta** (B vs B′ on 0 shared URLs): n/a
+- **Extractor-attributable delta** (B′ vs A): n/a

@@ -1,0 +1,2 @@
+{"meta": {"tool": "crawl4ai", "site": "marriott", "seed": "https://www.marriott.com/", "started_at": 1787917256.4984472, "wall_seconds": 1.3, "peak_rss_mb": 533.5}}
+{"url": "https://www.marriott.com/", "ok": false, "blocked": true, "status": 301, "words": 0, "words_shared": 17, "links_found": 0, "ms": 829, "error": "Blocked by anti-bot protection: Akamai block (Reference #)"}

@@ -1,0 +1,7 @@
+=== A marriott ===
+  [marriott] 1 pages, 0 ok, queue 0
+A/marriott: 0/1 ok, 1.4s, peak 533.5MB -> a-marriott.jsonl
+=== B marriott ===
+  [marriott] 1 pages, 1 ok, queue 0
+B/marriott: 1/1 ok, 3.6s, peak 1146.8MB -> b-marriott.jsonl
+MARRIOTT DONE

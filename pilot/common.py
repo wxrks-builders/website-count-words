@@ -63,6 +63,11 @@ SITES = {
     "community": ("https://community.clay.com", "JS SPA — crawl4ai discovery collapsed here (5,579 -> 439)"),
     "clay": ("https://www.clay.com", "anti-bot gauntlet — 301 blocked pages in one production run"),
     "wordpress": ("https://wordpress.org/news/", "boring WordPress control"),
+    # Added after the first run: clay.com blocked neither side that day, so the
+    # anti-bot gate had passed without either fetcher being challenged. Marriott
+    # runs Akamai and challenges everyone — it is also the site the app's own
+    # comments cite for off-domain redirect cascades.
+    "marriott": ("https://www.marriott.com/", "Akamai-protected — the real anti-bot gauntlet"),
 }
 
 
@@ -143,6 +148,13 @@ def looks_blocked(html: str | None, status: int | None) -> bool:
     if status in (403, 429, 503):
         return True
     if html and len(html) < 20_000 and _BLOCKED_RE.search(html):
+        return True
+    # The soft block: a 200 wearing a challenge interstitial. Marriott's Akamai
+    # hands Scrapling a 3KB shell with 5 visible words and one link — which is
+    # worse than an honest 403, because a "successful" 5-word homepage would
+    # sail into a word-count report as real data. A real page this empty is
+    # vanishingly rare on the sites this product crawls.
+    if status == 200 and html and len(html) < 10_000 and shared_words(html) < 20:
         return True
     return False
 

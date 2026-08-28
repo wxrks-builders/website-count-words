@@ -1,0 +1,2 @@
+{"meta": {"tool": "scrapling", "site": "marriott", "seed": "https://www.marriott.com/", "started_at": 1787917258.116979, "wall_seconds": 2.8, "peak_rss_mb": 1194.2}}
+{"url": "https://www.marriott.com/", "ok": false, "blocked": true, "status": 200, "words": 0, "words_shared": 5, "links_found": 0, "ms": 2755, "error": "HTTP 200"}
