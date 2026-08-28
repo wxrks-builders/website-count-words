@@ -1,0 +1,25 @@
+=== A wordpress ===
+  [wordpress] 120 pages, 120 ok, queue 756
+A/wordpress: 120/120 ok, 21.5s, peak 1889.4MB -> a-wordpress.jsonl
+=== B wordpress ===
+  [wordpress] 120 pages, 119 ok, queue 1819
+B/wordpress: 119/120 ok, 122.5s, peak 8886.1MB -> b-wordpress.jsonl
+=== A wxrks ===
+  [wxrks] 120 pages, 120 ok, queue 183
+A/wxrks: 120/120 ok, 24.9s, peak 2454.3MB -> a-wxrks.jsonl
+=== B wxrks ===
+  [wxrks] 120 pages, 120 ok, queue 1004
+B/wxrks: 120/120 ok, 119.3s, peak 10493.2MB -> b-wxrks.jsonl
+=== A community ===
+  [community] 2 pages, 2 ok, queue 0
+A/community: 2/2 ok, 3.7s, peak 1003.6MB -> a-community.jsonl
+=== B community ===
+  [community] 120 pages, 25 ok, queue 100
+B/community: 25/120 ok, 48.0s, peak 9168.8MB -> b-community.jsonl
+=== A clay ===
+  [clay] 120 pages, 120 ok, queue 918
+A/clay: 120/120 ok, 90.4s, peak 3419.3MB -> a-clay.jsonl
+=== B clay ===
+  [clay] 120 pages, 120 ok, queue 1081
+B/clay: 120/120 ok, 321.8s, peak 11745.3MB -> b-clay.jsonl
+ALL DONE

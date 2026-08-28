@@ -7,3 +7,4 @@ venv/
 .mo
 locales/**/*.mo
 dist/
+pilot/.venv/

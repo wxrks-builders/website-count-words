@@ -1,0 +1,4 @@
+# Side B only — side A runs in the app's venv (see README.md).
+scrapling[fetchers]
+lxml
+psutil
